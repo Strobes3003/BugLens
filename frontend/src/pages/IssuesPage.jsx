@@ -11,6 +11,9 @@ function IssuesPage() {
     const [priorityFilter, setPriorityFilter] = useState("");
     const [assigneeFilter, setAssigneeFilter] = useState("");
 
+    const [sortField, setSortField] = useState("");
+    const [sortDirection, setSortDirection] = useState("asc");
+
     const filteredIssues = mockIssues.filter((issue) => {
         const query = searchQuery.toLowerCase();
 
@@ -39,6 +42,32 @@ function IssuesPage() {
         );
     });
 
+    const sortedIssues = [...filteredIssues].sort((a, b) => {
+        if (!sortField) return 0;
+
+        const valueA = a[sortField] ?? "";
+        const valueB = b[sortField] ?? "";
+
+        const comparison = String(valueA).localeCompare(
+            String(valueB),
+            undefined,
+            { sensitivity: "base" }
+        );
+
+        return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection((current) =>
+                current === "asc" ? "desc" : "asc"
+            );
+        } else {
+            setSortField(field);
+            setSortDirection("asc");
+        }
+    };
+
     return (
         <div>
             <div>
@@ -59,16 +88,21 @@ function IssuesPage() {
                 onAssigneeChange={setAssigneeFilter}
             />
 
-            {filteredIssues.length === 0 ? (
+            {sortedIssues.length === 0 ? (
                 <div>
                     <h2>No issues found</h2>
                     <p>Try changing your search or filters.</p>
                 </div>
             ) : (
-                <IssueTable issues={filteredIssues} />
+                <IssueTable
+                    issues={sortedIssues}
+                    sortField={sortField}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
+                />
             )}
 
-            <IssuePagination totalIssues={filteredIssues.length} />
+            <IssuePagination totalIssues={sortedIssues.length} />
         </div>
     );
 }

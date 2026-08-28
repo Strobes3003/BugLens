@@ -1,14 +1,51 @@
-function IssueTable({ issues }) {
+function IssueTable({
+                        issues,
+                        sortField,
+                        sortDirection,
+                        onSort,
+                    }) {
+    const renderSortIndicator = (field) => {
+        if (sortField !== field) {
+            return "";
+        }
+
+        return sortDirection === "asc" ? " ↑" : " ↓";
+    };
+
     return (
         <div>
             <table>
                 <thead>
                 <tr>
-                    <th>Issue</th>
-                    <th>Status</th>
-                    <th>Severity</th>
-                    <th>Priority</th>
-                    <th>Assignee</th>
+                    <th>
+                        <button onClick={() => onSort("issueKey")}>
+                            Issue{renderSortIndicator("issueKey")}
+                        </button>
+                    </th>
+
+                    <th>
+                        <button onClick={() => onSort("status")}>
+                            Status{renderSortIndicator("status")}
+                        </button>
+                    </th>
+
+                    <th>
+                        <button onClick={() => onSort("severity")}>
+                            Severity{renderSortIndicator("severity")}
+                        </button>
+                    </th>
+
+                    <th>
+                        <button onClick={() => onSort("priority")}>
+                            Priority{renderSortIndicator("priority")}
+                        </button>
+                    </th>
+
+                    <th>
+                        <button onClick={() => onSort("assignee")}>
+                            Assignee{renderSortIndicator("assignee")}
+                        </button>
+                    </th>
                 </tr>
                 </thead>
 
