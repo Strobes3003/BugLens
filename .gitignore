@@ -1,1 +1,19 @@
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+.env.*
+
+# Maven
+target/
 backend/target/
+
+# OS
+.DS_Store
+Thumbs.db
