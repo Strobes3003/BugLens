@@ -44,6 +44,10 @@ public class Workspace {
         this.createdBy = createdBy;
     }
 
+    public void rename(String name) {
+        this.name = name;
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = Instant.now();

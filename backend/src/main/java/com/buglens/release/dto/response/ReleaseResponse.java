@@ -10,10 +10,9 @@ public record ReleaseResponse(
         Long id,
         Long projectId,
         String name,
-        String version,
         String description,
         ReleaseStatus status,
-        LocalDate releaseDate,
+        LocalDate targetDate,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -23,10 +22,9 @@ public record ReleaseResponse(
                 release.getId(),
                 release.getProject().getId(),
                 release.getName(),
-                release.getVersion(),
                 release.getDescription(),
                 release.getStatus(),
-                release.getReleaseDate(),
+                release.getTargetDate(),
                 release.getCreatedAt(),
                 release.getUpdatedAt()
         );

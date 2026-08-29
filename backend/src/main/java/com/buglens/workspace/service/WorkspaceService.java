@@ -4,6 +4,7 @@ import com.buglens.auth.entity.User;
 import com.buglens.auth.repository.UserRepository;
 import com.buglens.workspace.dto.request.AddWorkspaceMemberRequest;
 import com.buglens.workspace.dto.request.CreateWorkspaceRequest;
+import com.buglens.workspace.dto.request.UpdateWorkspaceRequest;
 import com.buglens.workspace.dto.request.UpdateWorkspaceMemberRequest;
 import com.buglens.workspace.dto.response.WorkspaceMemberResponse;
 import com.buglens.workspace.dto.response.WorkspaceResponse;
@@ -69,6 +70,28 @@ public class WorkspaceService {
         Workspace workspace = getWorkspace(workspaceId);
         workspaceAccessService.requireMember(workspaceId, userId);
         return toResponse(workspace);
+    }
+
+    @Transactional
+    public WorkspaceResponse update(Long workspaceId, UpdateWorkspaceRequest request, Long actorId) {
+        Workspace workspace = getWorkspace(workspaceId);
+        workspaceAccessService.requireMemberManager(workspaceId, actorId);
+
+        if (request.name() != null) {
+            String name = request.name().trim();
+            if (name.isBlank()) {
+                throw new WorkspaceConflictException("Workspace name must not be blank");
+            }
+            workspace.rename(name);
+        }
+        return toResponse(workspace);
+    }
+
+    @Transactional
+    public void delete(Long workspaceId, Long actorId) {
+        Workspace workspace = getWorkspace(workspaceId);
+        workspaceAccessService.requireOwner(workspaceId, actorId);
+        workspaceRepository.delete(workspace);
     }
 
     @Transactional

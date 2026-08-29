@@ -7,9 +7,8 @@ import com.buglens.release.dto.request.UpdateReleaseRequest;
 import com.buglens.release.dto.response.ReleaseResponse;
 import com.buglens.release.entity.Release;
 import com.buglens.release.entity.ReleaseStatus;
-import com.buglens.release.exception.DuplicateReleaseVersionException;
-import com.buglens.release.exception.InvalidReleaseFieldException;
 import com.buglens.release.exception.ReleaseAccessDeniedException;
+import com.buglens.release.exception.InvalidReleaseFieldException;
 import com.buglens.release.exception.ReleaseNotFoundException;
 import com.buglens.release.exception.ReleaseProjectNotFoundException;
 import com.buglens.release.repository.ReleaseRepository;
@@ -40,7 +39,7 @@ public class ReleaseService {
     public List<ReleaseResponse> listForProject(Long projectId, Long actorId) {
         Project project = requireProject(projectId);
         requireMember(project, actorId);
-        return releaseRepository.findAllByProjectIdOrderByReleaseDateDescNameAsc(projectId)
+        return releaseRepository.findAllByProjectIdOrderByTargetDateDescNameAsc(projectId)
                 .stream()
                 .map(ReleaseResponse::from)
                 .toList();
@@ -51,19 +50,12 @@ public class ReleaseService {
         Project project = requireProject(request.projectId());
         requireManager(project, actorId);
 
-        String name = normalize(request.name(), "name");
-        String version = normalize(request.version(), "version");
-        if (releaseRepository.existsByProjectIdAndVersionIgnoreCase(project.getId(), version)) {
-            throw new DuplicateReleaseVersionException(version);
-        }
-
         Release release = new Release(
                 project,
-                name,
-                version,
+                normalizeName(request.name()),
                 normalizeDescription(request.description()),
                 ReleaseStatus.PLANNED,
-                request.releaseDate()
+                request.targetDate()
         );
         return ReleaseResponse.from(releaseRepository.save(release));
     }
@@ -79,20 +71,11 @@ public class ReleaseService {
         Release release = getRelease(releaseId);
         requireManager(release.getProject(), actorId);
 
-        String name = request.name() == null ? null : normalize(request.name(), "name");
-        String version = request.version() == null ? null : normalize(request.version(), "version");
-        if (version != null
-                && !version.equalsIgnoreCase(release.getVersion())
-                && releaseRepository.existsByProjectIdAndVersionIgnoreCase(release.getProject().getId(), version)) {
-            throw new DuplicateReleaseVersionException(version);
-        }
-
         release.updateDetails(
-                name,
-                version,
+                request.name() == null ? null : normalizeName(request.name()),
                 normalizeDescription(request.description()),
                 request.status(),
-                request.releaseDate()
+                request.targetDate()
         );
         return ReleaseResponse.from(release);
     }
@@ -130,10 +113,10 @@ public class ReleaseService {
         }
     }
 
-    private String normalize(String value, String field) {
+    private String normalizeName(String value) {
         String normalized = value == null ? null : value.trim();
         if (normalized == null || normalized.isBlank()) {
-            throw new InvalidReleaseFieldException(field);
+            throw new InvalidReleaseFieldException("name");
         }
         return normalized;
     }

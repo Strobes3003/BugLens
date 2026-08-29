@@ -106,6 +106,13 @@ public class ProjectService {
         return ProjectResponse.from(project);
     }
 
+    @Transactional
+    public void delete(Long projectId, Long actorId) {
+        Project project = getProject(projectId);
+        requireManager(project.getWorkspace().getId(), actorId);
+        projectRepository.delete(project);
+    }
+
     private Project getProject(Long projectId) {
         return projectRepository.findById(projectId)
                 .orElseThrow(() -> new ProjectNotFoundException(projectId));

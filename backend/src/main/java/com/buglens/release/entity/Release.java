@@ -14,19 +14,12 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(
-        name = "releases",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_releases_project_version",
-                columnNames = {"project_id", "version"}
-        )
-)
+@Table(name = "releases")
 public class Release {
 
     @Id
@@ -40,9 +33,6 @@ public class Release {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(nullable = false, length = 50)
-    private String version;
-
     @Column(length = 2000)
     private String description;
 
@@ -50,8 +40,8 @@ public class Release {
     @Column(nullable = false, length = 20)
     private ReleaseStatus status;
 
-    @Column(name = "release_date")
-    private LocalDate releaseDate;
+    @Column(name = "target_date")
+    private LocalDate targetDate;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -65,17 +55,15 @@ public class Release {
     public Release(
             Project project,
             String name,
-            String version,
             String description,
             ReleaseStatus status,
-            LocalDate releaseDate
+            LocalDate targetDate
     ) {
         this.project = project;
         this.name = name;
-        this.version = version;
         this.description = description;
         this.status = status;
-        this.releaseDate = releaseDate;
+        this.targetDate = targetDate;
     }
 
     @PrePersist
@@ -92,16 +80,12 @@ public class Release {
 
     public void updateDetails(
             String name,
-            String version,
             String description,
             ReleaseStatus status,
-            LocalDate releaseDate
+            LocalDate targetDate
     ) {
         if (name != null) {
             this.name = name;
-        }
-        if (version != null) {
-            this.version = version;
         }
         if (description != null) {
             this.description = description;
@@ -109,8 +93,8 @@ public class Release {
         if (status != null) {
             this.status = status;
         }
-        if (releaseDate != null) {
-            this.releaseDate = releaseDate;
+        if (targetDate != null) {
+            this.targetDate = targetDate;
         }
     }
 
@@ -126,10 +110,6 @@ public class Release {
         return name;
     }
 
-    public String getVersion() {
-        return version;
-    }
-
     public String getDescription() {
         return description;
     }
@@ -138,8 +118,8 @@ public class Release {
         return status;
     }
 
-    public LocalDate getReleaseDate() {
-        return releaseDate;
+    public LocalDate getTargetDate() {
+        return targetDate;
     }
 
     public Instant getCreatedAt() {

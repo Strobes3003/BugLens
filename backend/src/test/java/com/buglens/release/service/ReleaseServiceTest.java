@@ -7,7 +7,6 @@ import com.buglens.release.dto.request.CreateReleaseRequest;
 import com.buglens.release.dto.request.UpdateReleaseRequest;
 import com.buglens.release.entity.Release;
 import com.buglens.release.entity.ReleaseStatus;
-import com.buglens.release.exception.DuplicateReleaseVersionException;
 import com.buglens.release.exception.InvalidReleaseFieldException;
 import com.buglens.release.repository.ReleaseRepository;
 import com.buglens.workspace.service.WorkspaceAccessService;
@@ -24,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,70 +58,68 @@ class ReleaseServiceTest {
     }
 
     @Test
-    void createsTrimmedPlannedReleaseForWorkspaceManager() {
+    void createsPlannedReleaseWithTargetDateForWorkspaceManager() {
         when(projectRepository.findById(7L)).thenReturn(Optional.of(project));
-        when(releaseRepository.existsByProjectIdAndVersionIgnoreCase(7L, "1.0.0"))
-                .thenReturn(false);
         when(releaseRepository.save(any(Release.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = releaseService.create(
-                new CreateReleaseRequest(7L, "  Initial release  ", "  1.0.0  ", "  First version  ", LocalDate.of(2026, 8, 29)),
+                new CreateReleaseRequest(
+                        7L,
+                        "  Initial release  ",
+                        "  First version  ",
+                        LocalDate.of(2026, 8, 29)
+                ),
                 11L
         );
 
         assertEquals("Initial release", response.name());
-        assertEquals("1.0.0", response.version());
         assertEquals("First version", response.description());
         assertEquals(ReleaseStatus.PLANNED, response.status());
-        assertEquals(LocalDate.of(2026, 8, 29), response.releaseDate());
+        assertEquals(LocalDate.of(2026, 8, 29), response.targetDate());
         verify(workspaceAccessService).requireMemberManager(3L, 11L);
     }
 
     @Test
-    void rejectsDuplicateVersionIgnoringCase() {
-        when(projectRepository.findById(7L)).thenReturn(Optional.of(project));
-        when(releaseRepository.existsByProjectIdAndVersionIgnoreCase(7L, "v1.0"))
-                .thenReturn(true);
-
-        assertThrows(
-                DuplicateReleaseVersionException.class,
-                () -> releaseService.create(new CreateReleaseRequest(7L, "Release 1", "v1.0", null, null), 11L)
-        );
-        verify(releaseRepository, never()).save(any(Release.class));
-    }
-
-    @Test
-    void rejectsBlankVersionDuringUpdate() {
-        Release release = new Release(project, "Release 1", "1.0.0", null, ReleaseStatus.PLANNED, null);
+    void rejectsBlankReleaseNameDuringUpdate() {
+        Release release = new Release(project, "Release 1", null, ReleaseStatus.PLANNED, null);
         when(releaseRepository.findById(21L)).thenReturn(Optional.of(release));
 
         assertThrows(
                 InvalidReleaseFieldException.class,
-                () -> releaseService.update(21L, new UpdateReleaseRequest(null, "  ", null, null, null), 11L)
+                () -> releaseService.update(
+                        21L,
+                        new UpdateReleaseRequest("  ", null, null, null),
+                        11L
+                )
         );
     }
 
     @Test
-    void updatesReleaseStatusAndDate() {
-        Release release = new Release(project, "Release 1", "1.0.0", null, ReleaseStatus.PLANNED, null);
+    void updatesReleaseStatusAndTargetDate() {
+        Release release = new Release(project, "Release 1", null, ReleaseStatus.PLANNED, null);
         when(releaseRepository.findById(21L)).thenReturn(Optional.of(release));
 
         var response = releaseService.update(
                 21L,
-                new UpdateReleaseRequest(null, null, " published ", ReleaseStatus.RELEASED, LocalDate.of(2026, 9, 1)),
+                new UpdateReleaseRequest(
+                        null,
+                        " published ",
+                        ReleaseStatus.ACTIVE,
+                        LocalDate.of(2026, 9, 1)
+                ),
                 11L
         );
 
         assertEquals("Release 1", response.name());
         assertEquals("published", response.description());
-        assertEquals(ReleaseStatus.RELEASED, response.status());
-        assertEquals(LocalDate.of(2026, 9, 1), response.releaseDate());
+        assertEquals(ReleaseStatus.ACTIVE, response.status());
+        assertEquals(LocalDate.of(2026, 9, 1), response.targetDate());
         verify(workspaceAccessService).requireMemberManager(3L, 11L);
     }
 
     @Test
     void deletesReleaseForWorkspaceManager() {
-        Release release = new Release(project, "Release 1", "1.0.0", null, ReleaseStatus.PLANNED, null);
+        Release release = new Release(project, "Release 1", null, ReleaseStatus.PLANNED, null);
         when(releaseRepository.findById(21L)).thenReturn(Optional.of(release));
 
         releaseService.delete(21L, 11L);

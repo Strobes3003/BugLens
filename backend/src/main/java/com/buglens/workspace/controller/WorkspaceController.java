@@ -3,6 +3,7 @@ package com.buglens.workspace.controller;
 import com.buglens.common.security.UserPrincipal;
 import com.buglens.workspace.dto.request.AddWorkspaceMemberRequest;
 import com.buglens.workspace.dto.request.CreateWorkspaceRequest;
+import com.buglens.workspace.dto.request.UpdateWorkspaceRequest;
 import com.buglens.workspace.dto.request.UpdateWorkspaceMemberRequest;
 import com.buglens.workspace.dto.response.WorkspaceMemberResponse;
 import com.buglens.workspace.dto.response.WorkspaceResponse;
@@ -53,6 +54,24 @@ public class WorkspaceController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return workspaceService.getById(workspaceId, principal.getId());
+    }
+
+    @PatchMapping("/{workspaceId}")
+    public WorkspaceResponse update(
+            @PathVariable Long workspaceId,
+            @Valid @RequestBody UpdateWorkspaceRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return workspaceService.update(workspaceId, request, principal.getId());
+    }
+
+    @DeleteMapping("/{workspaceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(
+            @PathVariable Long workspaceId,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        workspaceService.delete(workspaceId, principal.getId());
     }
 
     @PostMapping("/{workspaceId}/members")

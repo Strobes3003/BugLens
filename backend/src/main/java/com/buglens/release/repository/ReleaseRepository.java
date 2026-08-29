@@ -7,7 +7,5 @@ import java.util.List;
 
 public interface ReleaseRepository extends JpaRepository<Release, Long> {
 
-    List<Release> findAllByProjectIdOrderByReleaseDateDescNameAsc(Long projectId);
-
-    boolean existsByProjectIdAndVersionIgnoreCase(Long projectId, String version);
+    List<Release> findAllByProjectIdOrderByTargetDateDescNameAsc(Long projectId);
 }

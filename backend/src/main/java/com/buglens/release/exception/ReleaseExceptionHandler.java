@@ -30,11 +30,6 @@ public class ReleaseExceptionHandler {
         return error(HttpStatus.FORBIDDEN, "Access denied", exception.getMessage(), Map.of());
     }
 
-    @ExceptionHandler(DuplicateReleaseVersionException.class)
-    public ResponseEntity<ReleaseErrorResponse> handleDuplicateVersion(DuplicateReleaseVersionException exception) {
-        return error(HttpStatus.CONFLICT, "Duplicate release version", exception.getMessage(), Map.of());
-    }
-
     @ExceptionHandler(InvalidReleaseFieldException.class)
     public ResponseEntity<ReleaseErrorResponse> handleInvalidField(InvalidReleaseFieldException exception) {
         return error(HttpStatus.BAD_REQUEST, "Invalid release field", exception.getMessage(), Map.of());
