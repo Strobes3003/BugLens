@@ -45,7 +45,11 @@
 }
 
 .workspace-card-active {
-  border-color: var(--accent);
+  border-color: var(--accent) !important;
+}
+
+.workspace-card-active::before {
+  background: var(--accent) !important;
 }
 
 .workspace-card-desc {

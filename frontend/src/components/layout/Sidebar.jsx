@@ -43,6 +43,10 @@ export default function Sidebar() {
           </span>
         ))}
       </nav>
+
+      <div className="sidebar-footer spots">
+        🐞 Squash bugs before they spread — spot risk early.
+      </div>
     </aside>
   )
 }

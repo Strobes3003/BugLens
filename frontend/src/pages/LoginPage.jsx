@@ -1,12 +1,13 @@
 import LoginForm from '../features/auth/components/LoginForm'
+import LadybugMark from '../components/common/LadybugMark'
 import '../features/auth/components/auth.css'
 
 export default function LoginPage() {
   return (
-    <div className="auth-screen">
+    <div className="auth-screen spots">
       <div className="auth-card">
         <div className="auth-brand">
-          BugLens<span className="auth-brand-dot">.</span>
+          <LadybugMark size={30} /> BugLens
         </div>
         <LoginForm />
       </div>

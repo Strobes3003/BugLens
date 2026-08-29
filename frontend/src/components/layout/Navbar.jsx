@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Avatar, Dropdown } from '../ui'
 import { useAuth } from '../../features/auth/hooks/useAuth'
 import WorkspaceSelector from '../../features/workspace/components/WorkspaceSelector'
+import LadybugMark from '../common/LadybugMark'
 import { ROUTES } from '../../utils/constants'
 import './layout.css'
 
@@ -18,7 +19,7 @@ export default function Navbar() {
     <header className="navbar">
       <div className="navbar-left">
         <Link to={ROUTES.DASHBOARD} className="navbar-brand">
-          BugLens<span className="navbar-brand-dot">.</span>
+          <LadybugMark size={22} /> BugLens
         </Link>
         <WorkspaceSelector />
       </div>
