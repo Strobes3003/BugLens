@@ -1,0 +1,35 @@
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.project-card:hover {
+  border-color: var(--accent-border);
+}
+
+.project-card-key {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.project-card-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
+}
