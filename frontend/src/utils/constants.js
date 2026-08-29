@@ -11,6 +11,11 @@ export const ROUTES = {
   WORKSPACE: '/workspace',
   PROJECTS: '/projects',
   PROJECT_SETTINGS: '/projects/:projectId/settings',
+  ISSUES: '/issues',
+  ISSUE_DETAIL: '/issues/:issueId',
+  DEPENDENCIES: '/dependencies',
+  FIX_NEXT: '/fix-next',
+  RELEASE_RISK: '/release-risk',
 }
 
 export const WORKSPACE_ROLES = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']

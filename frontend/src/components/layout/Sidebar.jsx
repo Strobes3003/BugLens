@@ -6,14 +6,10 @@ const PRIMARY_LINKS = [
   { to: ROUTES.DASHBOARD, label: 'Dashboard', icon: '🏠' },
   { to: ROUTES.WORKSPACE, label: 'Workspace', icon: '🧭' },
   { to: ROUTES.PROJECTS, label: 'Projects', icon: '📁' },
-]
-
-// Owned by Frontend B — routes land here once that module ships.
-const UPCOMING_LINKS = [
-  { label: 'Issues', icon: '🐞' },
-  { label: 'Dependencies', icon: '🔗' },
-  { label: 'Fix Next', icon: '🎯' },
-  { label: 'Release Risk', icon: '📊' },
+  { to: ROUTES.ISSUES, label: 'Issues', icon: '🐞' },
+  { to: ROUTES.DEPENDENCIES, label: 'Dependencies', icon: '🔗' },
+  { to: ROUTES.FIX_NEXT, label: 'Fix Next', icon: '🎯' },
+  { to: ROUTES.RELEASE_RISK, label: 'Release Risk', icon: '📊' },
 ]
 
 export default function Sidebar() {
@@ -31,16 +27,6 @@ export default function Sidebar() {
             <span aria-hidden="true">{link.icon}</span>
             {link.label}
           </NavLink>
-        ))}
-      </nav>
-
-      <div className="sidebar-section-label">Coming soon</div>
-      <nav className="sidebar-nav">
-        {UPCOMING_LINKS.map((link) => (
-          <span key={link.label} className="sidebar-link sidebar-link-disabled">
-            <span aria-hidden="true">{link.icon}</span>
-            {link.label}
-          </span>
         ))}
       </nav>
 

@@ -7,6 +7,11 @@ import DashboardPage from './pages/DashboardPage'
 import WorkspacePage from './pages/WorkspacePage'
 import ProjectsPage from './pages/ProjectsPage'
 import ProjectSettingsPage from './pages/ProjectSettingsPage'
+import IssuesPage from './pages/IssuesPage'
+import IssueDetailPage from './pages/IssueDetailPage'
+import DependencyGraphPage from './pages/DependencyGraphPage'
+import FixNextPage from './pages/FixNextPage'
+import ReleaseRiskPage from './pages/ReleaseRiskPage'
 import { ROUTES } from './utils/constants'
 
 function App() {
@@ -21,9 +26,15 @@ function App() {
           <Route path={ROUTES.WORKSPACE} element={<WorkspacePage />} />
           <Route path={ROUTES.PROJECTS} element={<ProjectsPage />} />
           <Route
-            path="/projects/:projectId/settings"
+            path={ROUTES.PROJECT_SETTINGS}
             element={<ProjectSettingsPage />}
           />
+
+          <Route path={ROUTES.ISSUES} element={<IssuesPage />} />
+          <Route path={ROUTES.ISSUE_DETAIL} element={<IssueDetailPage />} />
+          <Route path={ROUTES.DEPENDENCIES} element={<DependencyGraphPage />} />
+          <Route path={ROUTES.FIX_NEXT} element={<FixNextPage />} />
+          <Route path={ROUTES.RELEASE_RISK} element={<ReleaseRiskPage />} />
         </Route>
       </Route>
 
