@@ -30,6 +30,21 @@ public class ComponentExceptionHandler {
         return error(HttpStatus.FORBIDDEN, "Access denied", exception.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(ComponentMemberNotFoundException.class)
+    public ResponseEntity<ComponentErrorResponse> handleMemberNotFound(ComponentMemberNotFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, "Component member not found", exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(ComponentMemberUserNotFoundException.class)
+    public ResponseEntity<ComponentErrorResponse> handleMemberUserNotFound(ComponentMemberUserNotFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, "Eligible user not found", exception.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(ComponentMemberConflictException.class)
+    public ResponseEntity<ComponentErrorResponse> handleMemberConflict(ComponentMemberConflictException exception) {
+        return error(HttpStatus.CONFLICT, "Component member conflict", exception.getMessage(), Map.of());
+    }
+
     @ExceptionHandler(DuplicateComponentNameException.class)
     public ResponseEntity<ComponentErrorResponse> handleDuplicateName(DuplicateComponentNameException exception) {
         return error(HttpStatus.CONFLICT, "Duplicate component name", exception.getMessage(), Map.of());

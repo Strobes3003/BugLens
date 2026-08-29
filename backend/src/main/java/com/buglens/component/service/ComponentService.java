@@ -89,6 +89,13 @@ public class ComponentService {
         return ComponentResponse.from(component);
     }
 
+    @Transactional
+    public void delete(Long componentId, Long actorId) {
+        Component component = getComponent(componentId);
+        requireManager(component.getProject(), actorId);
+        componentRepository.delete(component);
+    }
+
     private Component getComponent(Long componentId) {
         return componentRepository.findById(componentId)
                 .orElseThrow(() -> new ComponentNotFoundException(componentId));

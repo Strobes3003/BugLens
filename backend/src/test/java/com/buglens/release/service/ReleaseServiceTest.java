@@ -120,4 +120,15 @@ class ReleaseServiceTest {
         assertEquals(LocalDate.of(2026, 9, 1), response.releaseDate());
         verify(workspaceAccessService).requireMemberManager(3L, 11L);
     }
+
+    @Test
+    void deletesReleaseForWorkspaceManager() {
+        Release release = new Release(project, "Release 1", "1.0.0", null, ReleaseStatus.PLANNED, null);
+        when(releaseRepository.findById(21L)).thenReturn(Optional.of(release));
+
+        releaseService.delete(21L, 11L);
+
+        verify(workspaceAccessService).requireMemberManager(3L, 11L);
+        verify(releaseRepository).delete(release);
+    }
 }

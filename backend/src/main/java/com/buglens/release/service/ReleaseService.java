@@ -97,6 +97,13 @@ public class ReleaseService {
         return ReleaseResponse.from(release);
     }
 
+    @Transactional
+    public void delete(Long releaseId, Long actorId) {
+        Release release = getRelease(releaseId);
+        requireManager(release.getProject(), actorId);
+        releaseRepository.delete(release);
+    }
+
     private Release getRelease(Long releaseId) {
         return releaseRepository.findById(releaseId)
                 .orElseThrow(() -> new ReleaseNotFoundException(releaseId));

@@ -118,4 +118,15 @@ class ComponentServiceTest {
         assertEquals(ComponentStatus.ARCHIVED, response.status());
         verify(workspaceAccessService).requireMemberManager(3L, 11L);
     }
+
+    @Test
+    void deletesComponentForWorkspaceManager() {
+        Component component = new Component(project, "API", null, ComponentStatus.ACTIVE);
+        when(componentRepository.findById(21L)).thenReturn(Optional.of(component));
+
+        componentService.delete(21L, 11L);
+
+        verify(workspaceAccessService).requireMemberManager(3L, 11L);
+        verify(componentRepository).delete(component);
+    }
 }
