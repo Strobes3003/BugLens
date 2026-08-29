@@ -17,5 +17,10 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // Flags the standard fetch-on-mount effect pattern used throughout
+      // this app; we don't have a data-fetching library in scope yet.
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])
