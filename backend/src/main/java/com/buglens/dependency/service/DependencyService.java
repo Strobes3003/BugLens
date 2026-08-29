@@ -12,11 +12,14 @@ import com.buglens.dependency.exception.DependencyNotFoundException;
 import com.buglens.dependency.exception.DuplicateDependencyException;
 import com.buglens.dependency.exception.SelfDependencyException;
 import com.buglens.dependency.repository.IssueDependencyRepository;
+import com.buglens.event.domain.DependencyAddedEvent;
+import com.buglens.event.domain.DependencyRemovedEvent;
 import com.buglens.issue.entity.Issue;
 import com.buglens.issue.repository.IssueRepository;
 import com.buglens.project.entity.Project;
 import com.buglens.workspace.exception.WorkspaceAccessDeniedException;
 import com.buglens.workspace.service.WorkspaceAccessService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,15 +33,18 @@ public class DependencyService {
     private final IssueDependencyRepository dependencyRepository;
     private final IssueRepository issueRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public DependencyService(
             IssueDependencyRepository dependencyRepository,
             IssueRepository issueRepository,
-            WorkspaceAccessService workspaceAccessService
+            WorkspaceAccessService workspaceAccessService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.dependencyRepository = dependencyRepository;
         this.issueRepository = issueRepository;
         this.workspaceAccessService = workspaceAccessService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -66,9 +72,11 @@ public class DependencyService {
 
         requireNoCycle(blockingIssueId, blockedIssueId);
 
-        return DependencyResponse.from(
-                dependencyRepository.save(new IssueDependency(blocking, blocked))
+        IssueDependency edge = dependencyRepository.save(new IssueDependency(blocking, blocked));
+        eventPublisher.publishEvent(
+                DependencyAddedEvent.of(blockingIssueId, blockedIssueId, actorId)
         );
+        return DependencyResponse.from(edge);
     }
 
     @Transactional
@@ -81,6 +89,9 @@ public class DependencyService {
                 .orElseThrow(() -> new DependencyNotFoundException(blockingIssueId, blockedIssueId));
 
         dependencyRepository.delete(dependency);
+        eventPublisher.publishEvent(
+                DependencyRemovedEvent.of(blockingIssueId, blockedIssueId, actorId)
+        );
     }
 
     public IssueDependenciesResponse getDependencies(Long issueId, Long actorId) {

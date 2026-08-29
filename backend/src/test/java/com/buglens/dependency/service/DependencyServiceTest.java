@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
@@ -74,6 +75,9 @@ class DependencyServiceTest {
     private WorkspaceAccessService workspaceAccessService;
 
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
     private Workspace workspace;
 
     @Mock
@@ -91,7 +95,7 @@ class DependencyServiceTest {
     @BeforeEach
     void setUp() {
         dependencyService = new DependencyService(
-                dependencyRepository, issueRepository, workspaceAccessService
+                dependencyRepository, issueRepository, workspaceAccessService, eventPublisher
         );
 
         lenient().when(workspace.getId()).thenReturn(WORKSPACE_ID);
@@ -294,6 +298,43 @@ class DependencyServiceTest {
     }
 
     // ---------- removal and queries ----------
+
+    @Test
+    void addPublishesDependencyAddedEvent() {
+        add(A, B);
+
+        org.mockito.ArgumentCaptor<com.buglens.event.domain.DependencyAddedEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.buglens.event.domain.DependencyAddedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(A, captor.getValue().blockerId());
+        assertEquals(B, captor.getValue().blockedId());
+        assertEquals(ACTOR_ID, captor.getValue().actorId());
+    }
+
+    @Test
+    void rejectedAddPublishesNoEvent() {
+        add(A, B);
+        add(B, C);
+        org.mockito.Mockito.clearInvocations(eventPublisher);
+
+        assertThrows(CycleDetectedException.class, () -> add(C, A));
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void removePublishesDependencyRemovedEvent() {
+        IssueDependency edge = new IssueDependency(issues.get(A), issues.get(B));
+        when(dependencyRepository.findByBlockingIdAndBlockedId(A, B)).thenReturn(Optional.of(edge));
+
+        dependencyService.removeDependency(A, B, ACTOR_ID);
+
+        org.mockito.ArgumentCaptor<com.buglens.event.domain.DependencyRemovedEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.buglens.event.domain.DependencyRemovedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(A, captor.getValue().blockerId());
+        assertEquals(B, captor.getValue().blockedId());
+    }
 
     @Test
     void removesExistingDependency() {
