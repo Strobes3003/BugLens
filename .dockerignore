@@ -1,0 +1,10 @@
+# The build only needs backend/pom.xml and backend/src. Without this the whole
+# repository is uploaded as build context, including frontend/node_modules and
+# frontend/dist, which is slow and pointlessly large.
+.git/
+frontend/
+docs/
+database/
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+**/*.log
