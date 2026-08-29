@@ -1,254 +1,126 @@
-import { useEffect, useMemo, useState } from "react";
-import dependencyApi from "../api/dependencyApi";
-import mockIssues from "../features/issues/mockIssues";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import * as dependencyApi from "../api/dependencyApi";
+import { useActiveProject } from "../features/projects/hooks/useActiveProject";
+import ProjectPicker from "../features/projects/components/ProjectPicker";
+import { Spinner, ErrorState, EmptyState } from "../components/ui";
 
-const MOCK_DEPENDENCIES = [
-    {
-        from: "BL-101",
-        to: "BL-107",
-        relationship: "BLOCKS",
-    },
-    {
-        from: "BL-107",
-        to: "BL-103",
-        relationship: "AFFECTS",
-    },
-    {
-        from: "BL-103",
-        to: "BL-109",
-        relationship: "BLOCKS",
-    },
-    {
-        from: "BL-109",
-        to: "BL-104",
-        relationship: "AFFECTS",
-    },
-];
-
+/**
+ * Renders every edge in the project in one request. The backend rejects cycles when an edge is
+ * created, so this list is always a directed acyclic graph.
+ */
 function DependencyGraphPage() {
-    const [dependencies, setDependencies] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const {
+        projects,
+        activeProjectId,
+        selectProject,
+        isLoading: isProjectLoading,
+        error: projectError,
+    } = useActiveProject();
 
-    /*
-     * Project ID will eventually come from the workspace/project
-     * context owned by Member 1.
-     *
-     * Keep this configurable rather than hardcoding backend logic.
-     */
-    const projectId = null;
+    const [edges, setEdges] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const load = useCallback(() => {
+        if (!activeProjectId) {
+            setEdges([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        dependencyApi
+            .getProjectGraph(activeProjectId)
+            .then(setEdges)
+            .catch((err) => setError(err.message))
+            .finally(() => setIsLoading(false));
+    }, [activeProjectId]);
 
     useEffect(() => {
-        let mounted = true;
+        load();
+    }, [load]);
 
-        const loadGraph = async () => {
-            setLoading(true);
-            setError("");
+    if (isProjectLoading || isLoading) {
+        return <Spinner size={24} />;
+    }
 
-            /*
-             * Until the project context/backend contract is connected,
-             * use the existing mock graph.
-             */
-            if (!projectId) {
-                if (mounted) {
-                    setDependencies(MOCK_DEPENDENCIES);
-                    setLoading(false);
-                }
-                return;
-            }
+    if (projectError || error) {
+        return <ErrorState message={projectError || error} onRetry={load} />;
+    }
 
-            try {
-                const data = await dependencyApi.getGraph(projectId);
-
-                if (!mounted) return;
-
-                /*
-                 * Keep normalization lightweight.
-                 * The exact backend response shape can be adjusted
-                 * once Member 4 provides the final contract.
-                 */
-                const relationships =
-                    Array.isArray(data)
-                        ? data
-                        : data?.relationships ||
-                          data?.dependencies ||
-                          [];
-
-                setDependencies(relationships);
-            } catch (err) {
-                if (!mounted) return;
-
-                setError(
-                    err?.message ||
-                    "Unable to load dependency graph."
-                );
-                setDependencies([]);
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadGraph();
-
-        return () => {
-            mounted = false;
-        };
-    }, [projectId]);
-
-    const getIssueTitle = (key) => {
+    if (!activeProjectId) {
         return (
-            mockIssues.find(
-                (issue) =>
-                    issue.issueKey === key
-            )?.title ?? key
+            <EmptyState
+                title="No project selected"
+                description="Create a project to map its dependencies."
+            />
         );
-    };
+    }
 
-    const normalizedDependencies = useMemo(() => {
-        return dependencies.map((dependency) => ({
-            from:
-                dependency.from ??
-                dependency.source ??
-                dependency.issueKey ??
-                dependency.fromIssueKey,
-            to:
-                dependency.to ??
-                dependency.target ??
-                dependency.dependencyIssueKey ??
-                dependency.toIssueKey,
-            relationship:
-                dependency.relationship ??
-                dependency.type ??
-                "DEPENDENCY",
-        }));
-    }, [dependencies]);
-
-    const issueCount = useMemo(() => {
-        const keys = new Set();
-
-        normalizedDependencies.forEach(
-            ({ from, to }) => {
-                if (from) keys.add(from);
-                if (to) keys.add(to);
-            }
-        );
-
-        return keys.size;
-    }, [normalizedDependencies]);
+    const blockerCounts = edges.reduce((counts, edge) => {
+        const key = edge.blockingIssue.issueKey;
+        counts[key] = (counts[key] ?? 0) + 1;
+        return counts;
+    }, {});
 
     return (
-        <div>
+        <main>
             <header>
-                <h1>Dependency Graph</h1>
-
-                <p>
-                    Visualize relationships and dependency
-                    impact between issues.
-                </p>
+                <h1>Dependencies</h1>
+                <p>Every blocking relationship in this project.</p>
+                <ProjectPicker
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={selectProject}
+                />
             </header>
 
-            {loading && (
-                <section>
-                    <p>Loading dependency graph...</p>
-                </section>
-            )}
-
-            {error && (
-                <section>
-                    <h2>Unable to load graph</h2>
-                    <p>{error}</p>
-                </section>
-            )}
-
-            {!loading &&
-                !error &&
-                normalizedDependencies.length === 0 && (
-                    <section>
-                        <h2>No Dependencies</h2>
-                        <p>
-                            No dependency relationships have
-                            been defined for this project.
-                        </p>
-                    </section>
-                )}
-
-            {!loading &&
-                normalizedDependencies.length > 0 && (
-                    <>
-                        <section>
-                            <h2>Dependency Relationships</h2>
-
-                            {normalizedDependencies.map(
-                                (dependency, index) => (
-                                    <article
-                                        key={`${dependency.from}-${dependency.to}-${index}`}
+            {edges.length === 0 ? (
+                <EmptyState
+                    title="No dependencies"
+                    description="Link issues from an issue's detail page to build the graph."
+                />
+            ) : (
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Blocking</th>
+                            <th />
+                            <th>Blocked</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {edges.map((edge) => (
+                            <tr key={edge.id}>
+                                <td>
+                                    <Link
+                                        to={`/issues/${edge.blockingIssue.id}`}
                                     >
-                                        <div>
-                                            <strong>
-                                                {dependency.from}
-                                            </strong>
-
-                                            {" → "}
-
-                                            <strong>
-                                                {dependency.to}
-                                            </strong>
-                                        </div>
-
-                                        <p>
-                                            {getIssueTitle(
-                                                dependency.from
-                                            )}
-
-                                            {" → "}
-
-                                            {getIssueTitle(
-                                                dependency.to
-                                            )}
-                                        </p>
-
-                                        <span>
-                                            {dependency.relationship}
-                                        </span>
-                                    </article>
-                                )
-                            )}
-                        </section>
-
-                        <section>
-                            <h2>Dependency Analysis</h2>
-
-                            <p>
-                                Issues involved:{" "}
-                                {issueCount}
-                            </p>
-
-                            <p>
-                                Total relationships:{" "}
-                                {
-                                    normalizedDependencies.length
-                                }
-                            </p>
-
-                            <p>
-                                Impact analysis:{" "}
-                                <strong>
-                                    Pending backend analysis
-                                </strong>
-                            </p>
-
-                            <p>
-                                Cycle detection:{" "}
-                                <strong>
-                                    Pending backend analysis
-                                </strong>
-                            </p>
-                        </section>
-                    </>
-                )}
-        </div>
+                                        {edge.blockingIssue.issueKey}
+                                    </Link>
+                                    {blockerCounts[
+                                        edge.blockingIssue.issueKey
+                                    ] >= 3 && <span> ⚠ bottleneck</span>}
+                                </td>
+                                <td>blocks</td>
+                                <td>
+                                    <Link
+                                        to={`/issues/${edge.blockedIssue.id}`}
+                                    >
+                                        {edge.blockedIssue.issueKey}
+                                    </Link>
+                                </td>
+                                <td>{edge.blockedIssue.status}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </main>
     );
 }
 

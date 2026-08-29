@@ -9,6 +9,7 @@ import com.buglens.dependency.exception.CycleDetectedException;
 import com.buglens.dependency.exception.DependencyAccessDeniedException;
 import com.buglens.dependency.exception.DependencyIssueNotFoundException;
 import com.buglens.dependency.exception.DependencyNotFoundException;
+import com.buglens.dependency.exception.DependencyProjectNotFoundException;
 import com.buglens.dependency.exception.DuplicateDependencyException;
 import com.buglens.dependency.exception.SelfDependencyException;
 import com.buglens.dependency.repository.IssueDependencyRepository;
@@ -17,6 +18,7 @@ import com.buglens.event.domain.DependencyRemovedEvent;
 import com.buglens.issue.entity.Issue;
 import com.buglens.issue.repository.IssueRepository;
 import com.buglens.project.entity.Project;
+import com.buglens.project.repository.ProjectRepository;
 import com.buglens.workspace.exception.WorkspaceAccessDeniedException;
 import com.buglens.workspace.service.WorkspaceAccessService;
 import org.springframework.context.ApplicationEventPublisher;
@@ -32,17 +34,20 @@ public class DependencyService {
 
     private final IssueDependencyRepository dependencyRepository;
     private final IssueRepository issueRepository;
+    private final ProjectRepository projectRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final ApplicationEventPublisher eventPublisher;
 
     public DependencyService(
             IssueDependencyRepository dependencyRepository,
             IssueRepository issueRepository,
+            ProjectRepository projectRepository,
             WorkspaceAccessService workspaceAccessService,
             ApplicationEventPublisher eventPublisher
     ) {
         this.dependencyRepository = dependencyRepository;
         this.issueRepository = issueRepository;
+        this.projectRepository = projectRepository;
         this.workspaceAccessService = workspaceAccessService;
         this.eventPublisher = eventPublisher;
     }
@@ -111,6 +116,18 @@ public class DependencyService {
                         .toList();
 
         return new IssueDependenciesResponse(issue.getId(), issue.getIssueKey(), blockedBy, blocking);
+    }
+
+    /** Every dependency edge in a project, for whole-graph rendering. */
+    public List<DependencyResponse> listForProject(Long projectId, Long actorId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new DependencyProjectNotFoundException(projectId));
+        requireMember(project, actorId);
+
+        return dependencyRepository.findAllByProjectId(projectId)
+                .stream()
+                .map(DependencyResponse::from)
+                .toList();
     }
 
     /** Issues that block {@code issueId} (incoming edges). */

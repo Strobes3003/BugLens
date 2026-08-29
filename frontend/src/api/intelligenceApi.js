@@ -1,56 +1,17 @@
-import { API_BASE_URL } from '../utils/constants';
+import axiosClient from './axiosClient'
 
-async function request(endpoint, options = {}) {
-    const response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
-        {
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
-            ...options,
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(
-            (await response.text()) ||
-            `Request failed: ${response.status}`
-        );
-    }
-
-    if (response.status === 204) {
-        return null;
-    }
-
-    return response.json();
+export function getFixNext(projectId, limit = 10) {
+  return axiosClient
+    .get(`/projects/${projectId}/fix-next`, { params: { limit } })
+    .then((res) => res.data)
 }
 
-const intelligenceApi = {
-    getImpactScore: (issueId) =>
-        request(
-            `/intelligence/issues/${issueId}/impact-score`
-        ),
+export function getComponentHealth(componentId) {
+  return axiosClient
+    .get(`/components/${componentId}/health`)
+    .then((res) => res.data)
+}
 
-    getFixNext: (projectId) =>
-        request(
-            `/intelligence/projects/${projectId}/fix-next`
-        ),
-
-    getComponentHealth: (componentId) =>
-        request(
-            `/intelligence/components/${componentId}/health`
-        ),
-
-    getReleaseRisk: (releaseId) =>
-        request(
-            `/intelligence/releases/${releaseId}/risk`
-        ),
-
-    getDependencyAnalysis: (issueId) =>
-        request(
-            `/intelligence/issues/${issueId}/dependencies`
-        ),
-};
-
-export default intelligenceApi;
+export function getReleaseRisk(releaseId) {
+  return axiosClient.get(`/releases/${releaseId}/risk`).then((res) => res.data)
+}

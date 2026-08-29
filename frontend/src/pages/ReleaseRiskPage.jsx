@@ -1,252 +1,133 @@
-import { useEffect, useState } from "react";
-import intelligenceApi from "../api/intelligenceApi";
+import { useCallback, useEffect, useState } from "react";
+import * as intelligenceApi from "../api/intelligenceApi";
+import * as releaseApi from "../api/releaseApi";
+import { useActiveProject } from "../features/projects/hooks/useActiveProject";
+import ProjectPicker from "../features/projects/components/ProjectPicker";
+import { Spinner, ErrorState, EmptyState } from "../components/ui";
 
-const RELEASES = [
-    {
-        id: null,
-        name: "v2.4",
-    },
-    {
-        id: null,
-        name: "v2.5",
-    },
-];
+function riskLabel(score) {
+    if (score >= 70) return "High";
+    if (score >= 30) return "Moderate";
+    return "Low";
+}
 
 function ReleaseRiskPage() {
-    const [releaseRisk, setReleaseRisk] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const {
+        projects,
+        activeProjectId,
+        selectProject,
+        isLoading: isProjectLoading,
+        error: projectError,
+    } = useActiveProject();
 
-    /*
-     * Release IDs will eventually come from the project/release
-     * context provided by the rest of the application.
-     *
-     * Keep these as placeholders until the final backend contract
-     * and release/project context are connected.
-     */
+    const [risks, setRisks] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
+    const load = useCallback(() => {
+        if (!activeProjectId) {
+            setRisks([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        releaseApi
+            .getReleases(activeProjectId)
+            .then((releases) =>
+                /*
+                 * One risk request per release. allSettled so a release whose score cannot be
+                 * read does not hide the others.
+                 */
+                Promise.allSettled(
+                    releases.map((release) =>
+                        intelligenceApi.getReleaseRisk(release.id)
+                    )
+                ).then((results) =>
+                    releases.map((release, index) => ({
+                        release,
+                        risk:
+                            results[index].status === "fulfilled"
+                                ? results[index].value
+                                : null,
+                    }))
+                )
+            )
+            .then(setRisks)
+            .catch((err) => setError(err.message))
+            .finally(() => setIsLoading(false));
+    }, [activeProjectId]);
 
     useEffect(() => {
-        let mounted = true;
+        load();
+    }, [load]);
 
-        const loadReleaseRisk = async () => {
-            setLoading(true);
-            setError("");
+    if (isProjectLoading || isLoading) {
+        return <Spinner size={24} />;
+    }
 
-            /*
-             * No real release IDs are available yet.
-             * Keep the page in a pending state rather than
-             * calculating risk on the frontend.
-             */
-            if (
-                RELEASES.every(
-                    (release) => !release.id
-                )
-            ) {
-                if (mounted) {
-                    setReleaseRisk([]);
-                    setLoading(false);
-                }
+    if (projectError || error) {
+        return <ErrorState message={projectError || error} onRetry={load} />;
+    }
 
-                return;
-            }
-
-            try {
-                const results =
-                    await Promise.all(
-                        RELEASES
-                            .filter(
-                                (release) =>
-                                    release.id
-                            )
-                            .map(async (release) => {
-                                const data =
-                                    await intelligenceApi.getReleaseRisk(
-                                        release.id
-                                    );
-
-                                return {
-                                    ...release,
-                                    ...data,
-                                };
-                            })
-                    );
-
-                if (!mounted) return;
-
-                setReleaseRisk(results);
-            } catch (err) {
-                if (!mounted) return;
-
-                setError(
-                    err?.message ||
-                    "Unable to load release risk."
-                );
-                setReleaseRisk([]);
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadReleaseRisk();
-
-        return () => {
-            mounted = false;
-        };
-    }, []);
-
-    const getRiskLevel = (score) => {
-        if (typeof score !== "number") {
-            return "Pending";
-        }
-
-        if (score >= 70) {
-            return "CRITICAL";
-        }
-
-        if (score >= 40) {
-            return "HIGH";
-        }
-
-        if (score >= 20) {
-            return "MEDIUM";
-        }
-
-        return "LOW";
-    };
+    if (!activeProjectId) {
+        return (
+            <EmptyState
+                title="No project selected"
+                description="Create a project to assess release risk."
+            />
+        );
+    }
 
     return (
-        <div>
+        <main>
             <header>
                 <h1>Release Risk</h1>
-
-                <p>
-                    Analyze issue risk before releasing a
-                    project version.
-                </p>
+                <p>How risky each release looks right now.</p>
+                <ProjectPicker
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={selectProject}
+                />
             </header>
 
-            {loading && (
-                <section>
-                    <p>
-                        Loading release risk...
-                    </p>
-                </section>
-            )}
-
-            {error && (
-                <section>
-                    <h2>
-                        Unable to load release risk
-                    </h2>
-
-                    <p>{error}</p>
-                </section>
-            )}
-
-            {!loading &&
-                !error &&
-                releaseRisk.length === 0 && (
-                    <section>
-                        <h2>Release Risk Analysis</h2>
-
-                        <p>
-                            Release risk analysis is
-                            pending backend intelligence.
-                        </p>
-
-                        {RELEASES.map((release) => (
-                            <article
-                                key={release.name}
-                            >
-                                <h3>
-                                    {release.name}
-                                </h3>
-
-                                <p>
-                                    Risk Score:{" "}
-                                    <strong>
-                                        Pending
-                                    </strong>
-                                </p>
-
-                                <p>
-                                    Risk Level:{" "}
-                                    <strong>
-                                        Pending
-                                    </strong>
-                                </p>
-
-                                <p>
-                                    Issues:{" "}
-                                    <strong>
-                                        Pending
-                                    </strong>
-                                </p>
-                            </article>
+            {risks.length === 0 ? (
+                <EmptyState
+                    title="No releases"
+                    description="Create a release in this project to track its risk."
+                />
+            ) : (
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Release</th>
+                            <th>Status</th>
+                            <th>Target date</th>
+                            <th>Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {risks.map(({ release, risk }) => (
+                            <tr key={release.id}>
+                                <td>{release.name}</td>
+                                <td>{release.status}</td>
+                                <td>{release.targetDate ?? "—"}</td>
+                                <td>
+                                    {risk
+                                        ? `${risk.riskScore} (${riskLabel(
+                                              risk.riskScore
+                                          )})`
+                                        : "Unavailable"}
+                                </td>
+                            </tr>
                         ))}
-                    </section>
-                )}
-
-            {!loading &&
-                !error &&
-                releaseRisk.length > 0 && (
-                    <section>
-                        <h2>Release Risk Analysis</h2>
-
-                        {releaseRisk.map((release) => {
-                            const score =
-                                release.riskScore ??
-                                release.score;
-
-                            const level =
-                                release.riskLevel ??
-                                getRiskLevel(score);
-
-                            return (
-                                <article
-                                    key={
-                                        release.id ??
-                                        release.name
-                                    }
-                                >
-                                    <h3>
-                                        {release.name}
-                                    </h3>
-
-                                    <p>
-                                        Risk Score:{" "}
-                                        <strong>
-                                            {typeof score ===
-                                            "number"
-                                                ? `${score}/100`
-: "Pending"}
-</strong>
-</p>
-
-<p>
-    Risk Level:{" "}
-    <strong>
-        {level}
-    </strong>
-</p>
-
-<p>
-    Issues:{" "}
-    <strong>
-        {release.issueCount ??
-            "Pending"}
-    </strong>
-</p>
-</article>
-);
-})}
-</section>
-)}
-</div>
-);
+                    </tbody>
+                </table>
+            )}
+        </main>
+    );
 }
 
 export default ReleaseRiskPage;

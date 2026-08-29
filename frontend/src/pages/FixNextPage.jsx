@@ -1,187 +1,100 @@
-import { useEffect, useState } from "react";
-import intelligenceApi from "../api/intelligenceApi";
-import mockIssues from "../features/issues/mockIssues";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import * as intelligenceApi from "../api/intelligenceApi";
+import { useActiveProject } from "../features/projects/hooks/useActiveProject";
+import ProjectPicker from "../features/projects/components/ProjectPicker";
+import { Spinner, ErrorState, EmptyState } from "../components/ui";
 
+/**
+ * Ranking is the backend's call, not the UI's: the list is rendered in the order the API
+ * returns it, highest impact first with ties broken by age.
+ */
 function FixNextPage() {
-    const [recommendation, setRecommendation] =
-        useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const {
+        projects,
+        activeProjectId,
+        selectProject,
+        isLoading: isProjectLoading,
+        error: projectError,
+    } = useActiveProject();
 
-    /*
-     * Project ID will eventually come from the project/workspace
-     * context owned by Member 1.
-     *
-     * Until that integration is available, the page uses
-     * mock issue data so the frontend can be completed first.
-     */
-    const projectId = null;
+    const [ranked, setRanked] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const load = useCallback(() => {
+        if (!activeProjectId) {
+            setRanked([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        intelligenceApi
+            .getFixNext(activeProjectId, 10)
+            .then(setRanked)
+            .catch((err) => setError(err.message))
+            .finally(() => setIsLoading(false));
+    }, [activeProjectId]);
 
     useEffect(() => {
-        let mounted = true;
+        load();
+    }, [load]);
 
-        const loadRecommendation = async () => {
-            setLoading(true);
-            setError("");
+    if (isProjectLoading || isLoading) {
+        return <Spinner size={24} />;
+    }
 
-            /*
-             * Backend integration will be enabled once the
-             * final project context and API contract are available.
-             */
-            if (!projectId) {
-                if (mounted) {
-                    setRecommendation({
-                        issue: mockIssues[0],
-                        reason:
-                            "Recommendation will be provided by backend intelligence.",
-                    });
-                    setLoading(false);
-                }
+    if (projectError || error) {
+        return <ErrorState message={projectError || error} onRetry={load} />;
+    }
 
-                return;
-            }
-
-            try {
-                const data =
-                    await intelligenceApi.getFixNext(
-                        projectId
-                    );
-
-                if (!mounted) return;
-
-                setRecommendation(data);
-            } catch (err) {
-                if (!mounted) return;
-
-                setError(
-                    err?.message ||
-                    "Unable to load Fix Next recommendation."
-                );
-                setRecommendation(null);
-            } finally {
-                if (mounted) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadRecommendation();
-
-        return () => {
-            mounted = false;
-        };
-    }, [projectId]);
-
-    const issue = recommendation?.issue;
+    if (!activeProjectId) {
+        return (
+            <EmptyState
+                title="No project selected"
+                description="Create a project to see what to fix next."
+            />
+        );
+    }
 
     return (
-        <div>
+        <main>
             <header>
                 <h1>Fix Next</h1>
-
-                <p>
-                    Identify the issue that should be
-                    prioritized for fixing next.
-                </p>
+                <p>What the team should pick up next, ranked by impact.</p>
+                <ProjectPicker
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={selectProject}
+                />
             </header>
 
-            {loading && (
-                <section>
-                    <p>
-                        Loading recommendation...
-                    </p>
-                </section>
+            {ranked.length === 0 ? (
+                <EmptyState
+                    title="Nothing ranked yet"
+                    description="Impact scores appear once issues are created and updated."
+                />
+            ) : (
+                <ol>
+                    {ranked.map((entry) => (
+                        <li key={entry.issueId}>
+                            <Link to={`/issues/${entry.issueId}`}>
+                                <strong>{entry.issueKey}</strong> {entry.title}
+                            </Link>
+                            <span> — impact {entry.impactScore}</span>
+                            <span>
+                                {" "}
+                                ({entry.severity} severity, {entry.priority}{" "}
+                                priority, {entry.status})
+                            </span>
+                        </li>
+                    ))}
+                </ol>
             )}
-
-            {error && (
-                <section>
-                    <h2>
-                        Unable to load recommendation
-                    </h2>
-
-                    <p>{error}</p>
-                </section>
-            )}
-
-            {!loading &&
-                !error &&
-                recommendation && (
-                    <>
-                        <section>
-                            <h2>Recommended Issue</h2>
-
-                            {issue ? (
-                                <>
-                                    <h3>
-                                        {issue.issueKey}
-                                    </h3>
-
-                                    <p>
-                                        {issue.title}
-                                    </p>
-
-                                    <p>
-                                        Status:{" "}
-                                        {issue.status}
-                                    </p>
-
-                                    <p>
-                                        Severity:{" "}
-                                        {issue.severity}
-                                    </p>
-
-                                    <p>
-                                        Priority:{" "}
-                                        {issue.priority}
-                                    </p>
-
-                                    <p>
-                                        Assignee:{" "}
-                                        {issue.assignee ??
-                                            "Unassigned"}
-                                    </p>
-                                </>
-                            ) : (
-                                <p>
-                                    No issue recommendation
-                                    is currently available.
-                                </p>
-                            )}
-                        </section>
-
-                        <section>
-                            <h2>Why This Issue?</h2>
-
-                            <p>
-                                {recommendation.reason ??
-                                    "Backend intelligence analysis is pending."}
-                            </p>
-                        </section>
-
-                        <section>
-                            <h2>Recommendation Score</h2>
-
-                            <p>
-                                {recommendation.score ??
-                                    "Pending backend analysis"}
-                            </p>
-                        </section>
-                    </>
-                )}
-
-            {!loading &&
-                !error &&
-                !recommendation && (
-                    <section>
-                        <h2>No Recommendation</h2>
-
-                        <p>
-                            There is currently no issue
-                            recommended for the next fix.
-                        </p>
-                    </section>
-                )}
-        </div>
+        </main>
     );
 }
 

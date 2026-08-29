@@ -23,6 +23,12 @@ public interface IssueDependencyRepository extends JpaRepository<IssueDependency
     @EntityGraph(attributePaths = {"blocking"})
     List<IssueDependency> findAllByBlockedIdOrderByCreatedAtAsc(Long issueId);
 
+    /** Every edge in a project. Cross-project edges are rejected, so both ends share a project. */
+    @EntityGraph(attributePaths = {"blocking", "blocked"})
+    @Query("select d from IssueDependency d where d.blocking.component.project.id = :projectId "
+            + "order by d.createdAt asc")
+    List<IssueDependency> findAllByProjectId(@Param("projectId") Long projectId);
+
     /** Direct downstream neighbours of {@code issueId}. One hop only. */
     @Query("select d.blocked.id from IssueDependency d where d.blocking.id = :issueId")
     List<Long> findBlockedIssueIds(@Param("issueId") Long issueId);

@@ -3,6 +3,7 @@ export const API_BASE_URL =
 
 export const AUTH_TOKEN_KEY = 'buglens_token'
 export const ACTIVE_WORKSPACE_KEY = 'buglens_active_workspace'
+export const ACTIVE_PROJECT_KEY = 'buglens_active_project'
 
 export const ROUTES = {
   LOGIN: '/login',

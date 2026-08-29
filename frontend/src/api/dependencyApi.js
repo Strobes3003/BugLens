@@ -1,70 +1,35 @@
-import { API_BASE_URL } from '../utils/constants';
+import axiosClient from './axiosClient'
 
-async function request(endpoint, options = {}) {
-    const response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
-        {
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
-            ...options,
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(
-            (await response.text()) ||
-            `Request failed: ${response.status}`
-        );
-    }
-
-    if (response.status === 204) {
-        return null;
-    }
-
-    return response.json();
+/** { issueId, issueKey, blockedBy, blocking } for one issue. */
+export function getDependencies(issueId) {
+  return axiosClient
+    .get(`/issues/${issueId}/dependencies`)
+    .then((res) => res.data)
 }
 
-const dependencyApi = {
-    getDependencies: (issueId) =>
-        request(
-            `/issues/${issueId}/dependencies`
-        ),
+/** Every edge in the project, for whole-graph rendering. */
+export function getProjectGraph(projectId) {
+  return axiosClient
+    .get(`/projects/${projectId}/dependencies`)
+    .then((res) => res.data)
+}
 
-    addDependency: (
-        issueId,
-        dependencyIssueId,
-        type = "BLOCKS"
-    ) =>
-        request(
-            `/issues/${issueId}/dependencies`,
-            {
-                method: "POST",
-                body: JSON.stringify({
-                    dependencyIssueId,
-                    type,
-                }),
-            }
-        ),
+/** The path issue is the blocker: this records "blockerIssueId blocks blockedIssueId". */
+export function addDependency(blockerIssueId, blockedIssueId) {
+  return axiosClient
+    .post(`/issues/${blockerIssueId}/dependencies`, { blockedIssueId })
+    .then((res) => res.data)
+}
 
-    removeDependency: (dependencyId) =>
-        request(
-            `/dependencies/${dependencyId}`,
-            {
-                method: "DELETE",
-            }
-        ),
+export function removeDependency(blockerIssueId, blockedIssueId) {
+  return axiosClient
+    .delete(`/issues/${blockerIssueId}/dependencies/${blockedIssueId}`)
+    .then((res) => res.data)
+}
 
-    getGraph: (projectId) =>
-        request(
-            `/projects/${projectId}/dependencies/graph`
-        ),
-
-    getImpact: (issueId) =>
-        request(
-            `/issues/${issueId}/dependencies/impact`
-        ),
-};
-
-export default dependencyApi;
+/** { blastRadius, totalBlockers, directBlockers, directBlocked, hasBottleneck } */
+export function getDependencyAnalysis(issueId) {
+  return axiosClient
+    .get(`/issues/${issueId}/dependency-analysis`)
+    .then((res) => res.data)
+}

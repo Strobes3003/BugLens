@@ -1,11 +1,42 @@
-import { useState } from "react";
-import mockIssues from "../features/issues/mockIssues";
+import { useCallback, useEffect, useState } from "react";
+import * as issueApi from "../api/issueApi";
+import * as componentApi from "../api/componentApi";
+import * as releaseApi from "../api/releaseApi";
+import { useActiveProject } from "../features/projects/hooks/useActiveProject";
+import ProjectPicker from "../features/projects/components/ProjectPicker";
+import { Spinner, ErrorState, EmptyState } from "../components/ui";
 import IssueFilters from "../features/issues/IssueFilters";
 import IssueTable from "../features/issues/IssueTable";
 import IssuePagination from "../features/issues/IssuePagination";
 
+/**
+ * The table and filters were written against a flat mock shape, so the backend response is
+ * adapted here rather than rewriting those components: the API returns assigneeName/componentName
+ * where they expect assignee/component.
+ */
+function toRow(issue) {
+    return {
+        ...issue,
+        assignee: issue.assigneeName ?? "Unassigned",
+        component: issue.componentName ?? "",
+        release: issue.releaseName ?? "Backlog",
+    };
+}
+
 function IssuesPage() {
-    const [issues, setIssues] = useState(mockIssues);
+    const {
+        projects,
+        activeProjectId,
+        selectProject,
+        isLoading: isProjectLoading,
+        error: projectError,
+    } = useActiveProject();
+
+    const [issues, setIssues] = useState([]);
+    const [components, setComponents] = useState([]);
+    const [releases, setReleases] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
@@ -19,8 +50,37 @@ function IssuesPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [editingIssue, setEditingIssue] = useState(null);
+    const [saveError, setSaveError] = useState(null);
 
     const issuesPerPage = 10;
+
+    const loadIssues = useCallback(() => {
+        if (!activeProjectId) {
+            setIssues([]);
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+
+        Promise.all([
+            issueApi.getIssues(activeProjectId),
+            componentApi.getComponents(activeProjectId),
+            releaseApi.getReleases(activeProjectId),
+        ])
+            .then(([loadedIssues, loadedComponents, loadedReleases]) => {
+                setIssues(loadedIssues.map(toRow));
+                setComponents(loadedComponents);
+                setReleases(loadedReleases);
+            })
+            .catch((err) => setError(err.message))
+            .finally(() => setIsLoading(false));
+    }, [activeProjectId]);
+
+    useEffect(() => {
+        loadIssues();
+    }, [loadIssues]);
 
     const filteredIssues = issues.filter((issue) => {
         const query = searchQuery.toLowerCase().trim();
@@ -30,15 +90,11 @@ function IssuesPage() {
             issue.title.toLowerCase().includes(query) ||
             issue.issueKey.toLowerCase().includes(query);
 
-        const matchesStatus =
-            !statusFilter || issue.status === statusFilter;
-
+        const matchesStatus = !statusFilter || issue.status === statusFilter;
         const matchesSeverity =
             !severityFilter || issue.severity === severityFilter;
-
         const matchesPriority =
             !priorityFilter || issue.priority === priorityFilter;
-
         const matchesAssignee =
             !assigneeFilter || issue.assignee === assigneeFilter;
 
@@ -55,17 +111,8 @@ function IssuesPage() {
         if (!sortField) return 0;
 
         const rankings = {
-            severity: {
-                CRITICAL: 4,
-                HIGH: 3,
-                MEDIUM: 2,
-                LOW: 1,
-            },
-            priority: {
-                HIGH: 3,
-                MEDIUM: 2,
-                LOW: 1,
-            },
+            severity: { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 },
+            priority: { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 },
         };
 
         if (rankings[sortField]) {
@@ -73,23 +120,17 @@ function IssuesPage() {
                 (rankings[sortField][a[sortField]] ?? 0) -
                 (rankings[sortField][b[sortField]] ?? 0);
 
-            return sortDirection === "asc"
-                ? -comparison
-                : comparison;
+            return sortDirection === "asc" ? -comparison : comparison;
         }
 
         const valueA = String(a[sortField] ?? "");
         const valueB = String(b[sortField] ?? "");
 
-        const comparison = valueA.localeCompare(
-            valueB,
-            undefined,
-            { sensitivity: "base" }
-        );
+        const comparison = valueA.localeCompare(valueB, undefined, {
+            sensitivity: "base",
+        });
 
-        return sortDirection === "asc"
-            ? comparison
-            : -comparison;
+        return sortDirection === "asc" ? comparison : -comparison;
     });
 
     const totalPages = Math.max(
@@ -97,22 +138,14 @@ function IssuesPage() {
         Math.ceil(sortedIssues.length / issuesPerPage)
     );
 
-    const safeCurrentPage = Math.min(
-        currentPage,
-        totalPages
-    );
-
-    const startIndex =
-        (safeCurrentPage - 1) * issuesPerPage;
-
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (safeCurrentPage - 1) * issuesPerPage;
     const paginatedIssues = sortedIssues.slice(
         startIndex,
         startIndex + issuesPerPage
     );
 
-    const resetPage = () => {
-        setCurrentPage(1);
-    };
+    const resetPage = () => setCurrentPage(1);
 
     const handleSearchChange = (value) => {
         setSearchQuery(value);
@@ -140,16 +173,14 @@ function IssuesPage() {
     };
 
     const handleSort = (field) => {
-        setCurrentPage(1);
-
         if (sortField === field) {
             setSortDirection((current) =>
                 current === "asc" ? "desc" : "asc"
             );
-        } else {
-            setSortField(field);
-            setSortDirection("asc");
+            return;
         }
+        setSortField(field);
+        setSortDirection("asc");
     };
 
     const handlePageChange = (page) => {
@@ -158,42 +189,61 @@ function IssuesPage() {
         }
     };
 
-    const handleCreateIssue = (issueData) => {
-        const nextNumber =
-            Math.max(
-                ...issues.map((issue) => issue.id),
-                0
-            ) + 1;
-
-        const newIssue = {
-            id: nextNumber,
-            issueKey: `BL-${100 + nextNumber}`,
-            ...issueData,
-        };
-
-        setIssues((current) => [newIssue, ...current]);
-        setShowCreateForm(false);
-        setCurrentPage(1);
+    const handleCreateIssue = (payload) => {
+        setSaveError(null);
+        issueApi
+            .createIssue(payload)
+            .then(() => {
+                setShowCreateForm(false);
+                setCurrentPage(1);
+                loadIssues();
+            })
+            .catch((err) => setSaveError(err.message));
     };
 
-    const handleUpdateIssue = (issueData) => {
-        setIssues((current) =>
-            current.map((issue) =>
-                issue.id === editingIssue.id
-                    ? { ...issue, ...issueData }
-                    : issue
-            )
+    const handleUpdateIssue = (payload) => {
+        setSaveError(null);
+        issueApi
+            .updateIssue(editingIssue.id, payload)
+            .then(() => {
+                setEditingIssue(null);
+                loadIssues();
+            })
+            .catch((err) => setSaveError(err.message));
+    };
+
+    if (isProjectLoading || isLoading) {
+        return <Spinner size={24} />;
+    }
+
+    if (projectError || error) {
+        return (
+            <ErrorState message={projectError || error} onRetry={loadIssues} />
         );
+    }
 
-        setEditingIssue(null);
-    };
+    if (!activeProjectId) {
+        return (
+            <EmptyState
+                title="No project selected"
+                description="Create a project in this workspace to start tracking issues."
+            />
+        );
+    }
 
     return (
         <div>
             <header>
                 <h1>Issues</h1>
                 <p>Track, manage, and prioritize project issues.</p>
+                <ProjectPicker
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={selectProject}
+                />
             </header>
+
+            {saveError && <ErrorState message={saveError} />}
 
             <IssueFilters
                 searchQuery={searchQuery}
@@ -209,25 +259,36 @@ function IssuesPage() {
                 onCreateIssue={() => setShowCreateForm(true)}
             />
 
-            <IssueTable
-                issues={paginatedIssues}
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onSort={handleSort}
-                onEdit={setEditingIssue}
-            />
+            {sortedIssues.length === 0 ? (
+                <EmptyState
+                    title="No issues yet"
+                    description="Nothing matches the current filters."
+                />
+            ) : (
+                <>
+                    <IssueTable
+                        issues={paginatedIssues}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={handleSort}
+                        onEdit={setEditingIssue}
+                    />
 
-            <IssuePagination
-                currentPage={safeCurrentPage}
-                totalPages={totalPages}
-                totalIssues={sortedIssues.length}
-                issuesPerPage={issuesPerPage}
-                onPageChange={handlePageChange}
-            />
+                    <IssuePagination
+                        currentPage={safeCurrentPage}
+                        totalPages={totalPages}
+                        totalIssues={sortedIssues.length}
+                        issuesPerPage={issuesPerPage}
+                        onPageChange={handlePageChange}
+                    />
+                </>
+            )}
 
             {showCreateForm && (
                 <IssueForm
                     title="Create Issue"
+                    components={components}
+                    releases={releases}
                     onSubmit={handleCreateIssue}
                     onClose={() => setShowCreateForm(false)}
                 />
@@ -237,6 +298,8 @@ function IssuesPage() {
                 <IssueForm
                     title="Edit Issue"
                     issue={editingIssue}
+                    components={components}
+                    releases={releases}
                     onSubmit={handleUpdateIssue}
                     onClose={() => setEditingIssue(null)}
                 />
@@ -245,186 +308,135 @@ function IssuesPage() {
     );
 }
 
-function IssueForm({ title, issue, onSubmit, onClose }) {
+/**
+ * Sends componentId and releaseId, which is what the API accepts — the earlier form collected
+ * component and release as free text, which the backend has no way to resolve.
+ *
+ * There is deliberately no status field: status is owned by the workflow engine and changes
+ * through the transition controls on the issue detail page.
+ */
+function IssueForm({ title, issue, components, releases, onSubmit, onClose }) {
     const [form, setForm] = useState({
         title: issue?.title ?? "",
-        status: issue?.status ?? "OPEN",
+        description: issue?.description ?? "",
         severity: issue?.severity ?? "MEDIUM",
         priority: issue?.priority ?? "MEDIUM",
-        assignee: issue?.assignee ?? "Unassigned",
-        component: issue?.component ?? "Authentication",
-        release: issue?.release ?? "Unreleased",
-        description: issue?.description ?? "",
+        componentId: issue?.componentId ?? components[0]?.id ?? "",
+        releaseId: issue?.releaseId ?? "",
     });
 
     const handleChange = (field, value) => {
-        setForm((current) => ({
-            ...current,
-            [field]: value,
-        }));
+        setForm((current) => ({ ...current, [field]: value }));
     };
 
     const handleSubmit = (event) => {
         event.preventDefault();
-
-        if (!form.title.trim()) {
-            return;
-        }
-
         onSubmit({
-            ...form,
-            title: form.title.trim(),
+            title: form.title,
+            description: form.description || null,
+            severity: form.severity,
+            priority: form.priority,
+            componentId: Number(form.componentId),
+            releaseId: form.releaseId ? Number(form.releaseId) : null,
         });
     };
 
     return (
-        <div>
-            <div>
+        <div className="issue-form-backdrop">
+            <form className="issue-form" onSubmit={handleSubmit}>
                 <h2>{title}</h2>
 
-                <form onSubmit={handleSubmit}>
-                    <div>
-                        <label>Title</label>
-                        <input
-                            value={form.title}
-                            onChange={(event) =>
-                                handleChange(
-                                    "title",
-                                    event.target.value
-                                )
-                            }
-                            placeholder="Issue title"
-                        />
-                    </div>
+                <label>
+                    Title
+                    <input
+                        value={form.title}
+                        onChange={(e) => handleChange("title", e.target.value)}
+                        required
+                        maxLength={200}
+                    />
+                </label>
 
-                    <div>
-                        <label>Description</label>
-                        <textarea
-                            value={form.description}
-                            onChange={(event) =>
-                                handleChange(
-                                    "description",
-                                    event.target.value
-                                )
-                            }
-                            placeholder="Describe the issue..."
-                        />
-                    </div>
+                <label>
+                    Description
+                    <textarea
+                        value={form.description}
+                        onChange={(e) =>
+                            handleChange("description", e.target.value)
+                        }
+                    />
+                </label>
 
-                    <div>
-                        <label>Status</label>
-                        <select
-                            value={form.status}
-                            onChange={(event) =>
-                                handleChange(
-                                    "status",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="OPEN">Open</option>
-                            <option value="IN PROGRESS">
-                                In Progress
+                <label>
+                    Component
+                    <select
+                        value={form.componentId}
+                        onChange={(e) =>
+                            handleChange("componentId", e.target.value)
+                        }
+                        required
+                    >
+                        {components.map((component) => (
+                            <option key={component.id} value={component.id}>
+                                {component.name}
                             </option>
-                            <option value="IN REVIEW">
-                                In Review
+                        ))}
+                    </select>
+                </label>
+
+                <label>
+                    Release
+                    <select
+                        value={form.releaseId}
+                        onChange={(e) =>
+                            handleChange("releaseId", e.target.value)
+                        }
+                    >
+                        <option value="">Backlog</option>
+                        {releases.map((release) => (
+                            <option key={release.id} value={release.id}>
+                                {release.name}
                             </option>
-                            <option value="RESOLVED">
-                                Resolved
-                            </option>
-                        </select>
-                    </div>
+                        ))}
+                    </select>
+                </label>
 
-                    <div>
-                        <label>Severity</label>
-                        <select
-                            value={form.severity}
-                            onChange={(event) =>
-                                handleChange(
-                                    "severity",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="CRITICAL">Critical</option>
-                            <option value="HIGH">High</option>
-                            <option value="MEDIUM">Medium</option>
-                            <option value="LOW">Low</option>
-                        </select>
-                    </div>
+                <label>
+                    Severity
+                    <select
+                        value={form.severity}
+                        onChange={(e) =>
+                            handleChange("severity", e.target.value)
+                        }
+                    >
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="CRITICAL">Critical</option>
+                    </select>
+                </label>
 
-                    <div>
-                        <label>Priority</label>
-                        <select
-                            value={form.priority}
-                            onChange={(event) =>
-                                handleChange(
-                                    "priority",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="HIGH">High</option>
-                            <option value="MEDIUM">Medium</option>
-                            <option value="LOW">Low</option>
-                        </select>
-                    </div>
+                <label>
+                    Priority
+                    <select
+                        value={form.priority}
+                        onChange={(e) =>
+                            handleChange("priority", e.target.value)
+                        }
+                    >
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="CRITICAL">Critical</option>
+                    </select>
+                </label>
 
-                    <div>
-                        <label>Assignee</label>
-                        <select
-                            value={form.assignee}
-                            onChange={(event) =>
-                                handleChange(
-                                    "assignee",
-                                    event.target.value
-                                )
-                            }
-                        >
-                            <option value="Rahul">Rahul</option>
-                            <option value="Priya">Priya</option>
-                            <option value="Arjun">Arjun</option>
-                            <option value="Unassigned">
-                                Unassigned
-                            </option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label>Component</label>
-                        <input
-                            value={form.component}
-                            onChange={(event) =>
-                                handleChange(
-                                    "component",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label>Release</label>
-                        <input
-                            value={form.release}
-                            onChange={(event) =>
-                                handleChange(
-                                    "release",
-                                    event.target.value
-                                )
-                            }
-                        />
-                    </div>
-
-                    <button type="submit">
-                        {issue ? "Save Changes" : "Create Issue"}
-                    </button>
-
+                <div className="issue-form-actions">
+                    <button type="submit">Save</button>
                     <button type="button" onClick={onClose}>
                         Cancel
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     );
 }

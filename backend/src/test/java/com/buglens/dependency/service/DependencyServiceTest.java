@@ -18,6 +18,7 @@ import com.buglens.issue.entity.IssueSeverity;
 import com.buglens.issue.entity.IssueStatus;
 import com.buglens.issue.repository.IssueRepository;
 import com.buglens.project.entity.Project;
+import com.buglens.project.repository.ProjectRepository;
 import com.buglens.workspace.entity.Workspace;
 import com.buglens.workspace.exception.WorkspaceAccessDeniedException;
 import com.buglens.workspace.service.WorkspaceAccessService;
@@ -72,6 +73,9 @@ class DependencyServiceTest {
     private IssueRepository issueRepository;
 
     @Mock
+    private ProjectRepository projectRepository;
+
+    @Mock
     private WorkspaceAccessService workspaceAccessService;
 
     @Mock
@@ -95,7 +99,8 @@ class DependencyServiceTest {
     @BeforeEach
     void setUp() {
         dependencyService = new DependencyService(
-                dependencyRepository, issueRepository, workspaceAccessService, eventPublisher
+                dependencyRepository, issueRepository, projectRepository,
+                workspaceAccessService, eventPublisher
         );
 
         lenient().when(workspace.getId()).thenReturn(WORKSPACE_ID);
@@ -353,6 +358,31 @@ class DependencyServiceTest {
         assertThrows(
                 DependencyNotFoundException.class,
                 () -> dependencyService.removeDependency(A, B, ACTOR_ID)
+        );
+    }
+
+    @Test
+    void listForProjectReturnsEveryEdge() {
+        when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
+        when(dependencyRepository.findAllByProjectId(PROJECT_ID)).thenReturn(List.of(
+                new IssueDependency(issues.get(A), issues.get(B)),
+                new IssueDependency(issues.get(B), issues.get(C))
+        ));
+
+        var edges = dependencyService.listForProject(PROJECT_ID, ACTOR_ID);
+
+        assertEquals(2, edges.size());
+        assertEquals(A, edges.get(0).blockingIssue().id());
+        assertEquals(C, edges.get(1).blockedIssue().id());
+    }
+
+    @Test
+    void listForProjectRejectsUnknownProject() {
+        when(projectRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(
+                com.buglens.dependency.exception.DependencyProjectNotFoundException.class,
+                () -> dependencyService.listForProject(404L, ACTOR_ID)
         );
     }
 

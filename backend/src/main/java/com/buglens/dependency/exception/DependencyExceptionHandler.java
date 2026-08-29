@@ -55,6 +55,11 @@ public class DependencyExceptionHandler {
         return error(HttpStatus.NOT_FOUND, "Issue not found", exception.getMessage(), Map.of());
     }
 
+    @ExceptionHandler(DependencyProjectNotFoundException.class)
+    public ResponseEntity<DependencyErrorResponse> handleProjectNotFound(DependencyProjectNotFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, "Project not found", exception.getMessage(), Map.of());
+    }
+
     @ExceptionHandler(DependencyAccessDeniedException.class)
     public ResponseEntity<DependencyErrorResponse> handleAccessDenied(DependencyAccessDeniedException exception) {
         return error(HttpStatus.FORBIDDEN, "Access denied", exception.getMessage(), Map.of());

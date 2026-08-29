@@ -1,77 +1,28 @@
-import { API_BASE_URL } from '../utils/constants';
+import axiosClient from './axiosClient'
 
-async function request(endpoint, options = {}) {
-    const response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
-        {
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
-            ...options,
-        }
-    );
-
-    if (!response.ok) {
-        const message =
-            await response.text();
-
-        throw new Error(
-            message || `Request failed: ${response.status}`
-        );
-    }
-
-    if (response.status === 204) {
-        return null;
-    }
-
-    return response.json();
+export function getIssues(projectId, params = {}) {
+  return axiosClient
+    .get(`/projects/${projectId}/issues`, { params })
+    .then((res) => res.data)
 }
 
-export const issueApi = {
-    getIssues: (projectId, params = {}) => {
-        const query = new URLSearchParams(params);
+export function getIssue(issueId) {
+  return axiosClient.get(`/issues/${issueId}`).then((res) => res.data)
+}
 
-        return request(
-            `/projects/${projectId}/issues?${query.toString()}`
-        );
-    },
+export function getIssueByKey(issueKey) {
+  return axiosClient.get(`/issues/key/${issueKey}`).then((res) => res.data)
+}
 
-    getIssue: (issueId) => {
-        return request(`/issues/${issueId}`);
-    },
+export function createIssue(payload) {
+  return axiosClient.post('/issues', payload).then((res) => res.data)
+}
 
-    createIssue: (issue) => {
-        return request("/issues", {
-            method: "POST",
-            body: JSON.stringify(issue),
-        });
-    },
+/** Details only. Status is owned by the workflow engine and is not accepted here. */
+export function updateIssue(issueId, payload) {
+  return axiosClient.patch(`/issues/${issueId}`, payload).then((res) => res.data)
+}
 
-    updateIssue: (issueId, issue) => {
-        return request(`/issues/${issueId}`, {
-            method: "PUT",
-            body: JSON.stringify(issue),
-        });
-    },
-
-    deleteIssue: (issueId) => {
-        return request(`/issues/${issueId}`, {
-            method: "DELETE",
-        });
-    },
-
-    assignIssue: (issueId, assigneeId) => {
-        return request(
-            `/issues/${issueId}/assignee`,
-            {
-                method: "PATCH",
-                body: JSON.stringify({
-                    assigneeId,
-                }),
-            }
-        );
-    },
-};
-
-export default issueApi;
+export function deleteIssue(issueId) {
+  return axiosClient.delete(`/issues/${issueId}`).then((res) => res.data)
+}

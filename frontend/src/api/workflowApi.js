@@ -1,49 +1,13 @@
-import { API_BASE_URL } from '../utils/constants';
+import axiosClient from './axiosClient'
 
-async function request(endpoint, options = {}) {
-    const response = await fetch(
-        `${API_BASE_URL}${endpoint}`,
-        {
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
-            ...options,
-        }
-    );
-
-    if (!response.ok) {
-        throw new Error(
-            (await response.text()) ||
-            `Request failed: ${response.status}`
-        );
-    }
-
-    if (response.status === 204) {
-        return null;
-    }
-
-    return response.json();
+/** { currentStatus, allowedTransitions } — the backend owns which moves are legal. */
+export function getTransitions(issueId) {
+  return axiosClient.get(`/issues/${issueId}/transitions`).then((res) => res.data)
 }
 
-const workflowApi = {
-    getStatuses: (projectId) =>
-        request(
-            `/projects/${projectId}/workflow/statuses`
-        ),
-
-    getTransitions: (issueId) =>
-        request(
-            `/issues/${issueId}/workflow/transitions`
-        ),
-
-    transitionIssue: (issueId, transitionId) =>
-        request(
-            `/issues/${issueId}/workflow/transitions/${transitionId}`,
-            {
-                method: "POST",
-            }
-        ),
-};
-
-export default workflowApi;
+/** An illegal target comes back as 422 listing the targets that would have been allowed. */
+export function transitionIssue(issueId, targetStatus, comment) {
+  return axiosClient
+    .post(`/issues/${issueId}/transitions`, { targetStatus, comment })
+    .then((res) => res.data)
+}
