@@ -61,6 +61,50 @@ public interface IssueDependencyRepository extends JpaRepository<IssueDependency
     );
 
     /**
+     * Every issue reachable downstream of {@code issueId} — everything it blocks, directly or
+     * through any chain.
+     *
+     * <p>Recursion uses {@code UNION}, not {@code UNION ALL}. That single word is what makes the
+     * result a set: a node reachable by several routes through a diamond is produced once, so
+     * the caller counts distinct affected issues rather than distinct paths. It is also the
+     * termination condition — once no new node ids appear the recursion stops, so the query
+     * completes even on a graph that already contains a cycle.
+     *
+     * <p>The start node is excluded: an issue is not in its own blast radius.
+     */
+    @Query(value = """
+            WITH RECURSIVE downstream(node_id) AS (
+                SELECT d.blocked_issue_id
+                FROM issue_dependencies d
+                WHERE d.blocking_issue_id = :issueId
+                UNION
+                SELECT d.blocked_issue_id
+                FROM issue_dependencies d
+                JOIN downstream ds ON d.blocking_issue_id = ds.node_id
+            )
+            SELECT ds.node_id FROM downstream ds WHERE ds.node_id <> :issueId
+            """, nativeQuery = true)
+    List<Long> findDeepDownstreamBlockedIds(@Param("issueId") Long issueId);
+
+    /**
+     * Every issue upstream of {@code issueId} — everything that blocks it, directly or through
+     * any chain. The mirror of {@link #findDeepDownstreamBlockedIds}, walking edges in reverse.
+     */
+    @Query(value = """
+            WITH RECURSIVE upstream(node_id) AS (
+                SELECT d.blocking_issue_id
+                FROM issue_dependencies d
+                WHERE d.blocked_issue_id = :issueId
+                UNION
+                SELECT d.blocking_issue_id
+                FROM issue_dependencies d
+                JOIN upstream us ON d.blocked_issue_id = us.node_id
+            )
+            SELECT us.node_id FROM upstream us WHERE us.node_id <> :issueId
+            """, nativeQuery = true)
+    List<Long> findDeepUpstreamBlockerIds(@Param("issueId") Long issueId);
+
+    /**
      * Serialises dependency-graph writes for one project.
      *
      * <p>Cycle detection is read-then-write: two concurrent requests can each traverse an acyclic

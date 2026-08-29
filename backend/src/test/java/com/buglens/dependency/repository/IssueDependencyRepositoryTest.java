@@ -226,6 +226,75 @@ class IssueDependencyRepositoryTest {
         );
     }
 
+    // ---------- deep traversal (blast radius), executed by PostgreSQL ----------
+
+    @Test
+    void deepDownstreamCountsChainAndBranch() {
+        // A -> B -> C and A -> D
+        edge(issueA, issueB);
+        edge(issueB, issueC);
+        edge(issueA, issueD);
+        entityManager.flush();
+
+        assertEquals(3, dependencyRepository.findDeepDownstreamBlockedIds(issueA.getId()).size());
+    }
+
+    /**
+     * The reason the CTE recurses with UNION rather than UNION ALL: D is reachable through both
+     * B and C, but it is one affected issue, not two.
+     */
+    @Test
+    void deepDownstreamCountsDiamondNodeOnlyOnce() {
+        edge(issueA, issueB);
+        edge(issueA, issueC);
+        edge(issueB, issueD);
+        edge(issueC, issueD);
+        entityManager.flush();
+
+        List<Long> downstream = dependencyRepository.findDeepDownstreamBlockedIds(issueA.getId());
+
+        assertEquals(3, downstream.size());
+        assertEquals(3, new java.util.HashSet<>(downstream).size());
+        assertTrue(downstream.contains(issueD.getId()));
+    }
+
+    @Test
+    void deepDownstreamExcludesTheStartNodeAndTerminatesOnCycles() {
+        edge(issueA, issueB);
+        edge(issueB, issueC);
+        edge(issueC, issueA);
+        entityManager.flush();
+
+        List<Long> downstream = dependencyRepository.findDeepDownstreamBlockedIds(issueA.getId());
+
+        assertEquals(2, downstream.size());
+        assertTrue(downstream.contains(issueB.getId()));
+        assertTrue(downstream.contains(issueC.getId()));
+    }
+
+    @Test
+    void deepDownstreamIsEmptyForLeaf() {
+        edge(issueA, issueB);
+        entityManager.flush();
+
+        assertTrue(dependencyRepository.findDeepDownstreamBlockedIds(issueB.getId()).isEmpty());
+    }
+
+    @Test
+    void deepUpstreamMirrorsDownstream() {
+        edge(issueA, issueB);
+        edge(issueB, issueC);
+        edge(issueD, issueC);
+        entityManager.flush();
+
+        List<Long> upstream = dependencyRepository.findDeepUpstreamBlockerIds(issueC.getId());
+
+        assertEquals(3, upstream.size());
+        assertTrue(upstream.contains(issueA.getId()));
+        assertTrue(upstream.contains(issueD.getId()));
+        assertTrue(dependencyRepository.findDeepUpstreamBlockerIds(issueA.getId()).isEmpty());
+    }
+
     // ---------- advisory lock ----------
 
     @Test
