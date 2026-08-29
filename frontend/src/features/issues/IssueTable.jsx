@@ -1,3 +1,5 @@
+import { Link, useNavigate } from "react-router-dom";
+
 function IssueTable({
                         issues,
                         sortField,
@@ -5,6 +7,8 @@ function IssueTable({
                         onSort,
                         onEdit,
                     }) {
+    const navigate = useNavigate();
+
     const renderSortIndicator = (field) => {
         if (sortField !== field) {
             return "";
@@ -107,11 +111,28 @@ function IssueTable({
 
                 <tbody>
                 {issues.map((issue) => (
-                    <tr key={issue.id}>
+                    <tr
+                        key={issue.id}
+                        onClick={() =>
+                            navigate(`/issues/${issue.id}`)
+                        }
+                        style={{ cursor: "pointer" }}
+                    >
                         <td>
-                            <strong>
-                                {issue.issueKey}
-                            </strong>
+                            {/*
+                              * A real link as well as the row click: the row gives mouse users a
+                              * large target, but a clickable <tr> is not reachable by keyboard.
+                              */}
+                            <Link
+                                to={`/issues/${issue.id}`}
+                                onClick={(event) =>
+                                    event.stopPropagation()
+                                }
+                            >
+                                <strong>
+                                    {issue.issueKey}
+                                </strong>
+                            </Link>
                             <br />
                             {issue.title}
                         </td>
@@ -124,9 +145,11 @@ function IssueTable({
                         <td>
                             <button
                                 type="button"
-                                onClick={() =>
-                                    onEdit?.(issue)
-                                }
+                                onClick={(event) => {
+                                    // Without this the row handler also fires and navigates away.
+                                    event.stopPropagation();
+                                    onEdit?.(issue);
+                                }}
                             >
                                 Edit
                             </button>
