@@ -105,6 +105,30 @@ public interface IssueDependencyRepository extends JpaRepository<IssueDependency
     List<Long> findDeepUpstreamBlockerIds(@Param("issueId") Long issueId);
 
     /**
+     * How many issues in a release are chokepoints — issues with at least {@code threshold}
+     * direct outgoing edges.
+     *
+     * <p>Grouping and counting in the database avoids pulling every edge into memory to compute
+     * an out-degree histogram. Only unresolved issues count: a chokepoint that has been fixed is
+     * no longer holding anything up.
+     */
+    @Query(value = """
+            SELECT COUNT(*) FROM (
+                SELECT d.blocking_issue_id
+                FROM issue_dependencies d
+                JOIN issues i ON i.id = d.blocking_issue_id
+                WHERE i.release_id = :releaseId
+                  AND i.status NOT IN ('RESOLVED', 'CLOSED')
+                GROUP BY d.blocking_issue_id
+                HAVING COUNT(*) >= :threshold
+            ) bottlenecks
+            """, nativeQuery = true)
+    long countBottlenecksInRelease(
+            @Param("releaseId") Long releaseId,
+            @Param("threshold") int threshold
+    );
+
+    /**
      * Serialises dependency-graph writes for one project.
      *
      * <p>Cycle detection is read-then-write: two concurrent requests can each traverse an acyclic
