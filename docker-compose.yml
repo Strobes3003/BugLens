@@ -1,0 +1,57 @@
+# Local full-stack database and backend.
+#
+# Render does not read this file — it builds backend/Dockerfile directly and
+# provides its own managed PostgreSQL. This exists so the stack can be brought
+# up locally with one command, and so the backend's environment contract is
+# written down somewhere executable.
+#
+#   docker compose up --build
+#
+# The frontend is not included: it runs on Vite's dev server with hot reload
+# (cd frontend && npm run dev), which containerising would only get in the way of.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: buglens-postgres
+    environment:
+      POSTGRES_DB: buglens
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The backend runs Flyway on startup, so it must not start against a
+      # server that is listening but not yet accepting queries.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d buglens"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: buglens-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # postgres:5432 is the service name on the compose network, not localhost.
+      DB_URL: jdbc:postgresql://postgres:5432/buglens
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      SERVER_PORT: 8080
+      # Local-only value. Production must supply a real secret.
+      JWT_SECRET: local-development-secret-change-me-before-production
+      JWT_EXPIRATION_MS: 86400000
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
