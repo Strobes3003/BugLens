@@ -29,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 
@@ -72,6 +73,9 @@ class IssueServiceTest {
     private WorkspaceAccessService workspaceAccessService;
 
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
     private Workspace workspace;
 
     @Mock
@@ -98,7 +102,8 @@ class IssueServiceTest {
                 projectRepository,
                 userRepository,
                 issueKeyGenerator,
-                workspaceAccessService
+                workspaceAccessService,
+                eventPublisher
         );
 
         reporter = new User("Reporter", "reporter@buglens.test", "hash", null);
@@ -261,6 +266,68 @@ class IssueServiceTest {
 
         assertThrows(IssueAccessDeniedException.class, () -> issueService.delete(5L, ACTOR_ID));
         verify(issueRepository, never()).delete(any());
+    }
+
+    @Test
+    void createPublishesIssueCreatedEvent() {
+        when(componentRepository.findById(10L)).thenReturn(Optional.of(component));
+        when(userRepository.findById(ACTOR_ID)).thenReturn(Optional.of(reporter));
+        when(issueKeyGenerator.nextKey(project)).thenReturn("BL-20");
+        when(issueRepository.save(any(Issue.class))).thenAnswer(call -> call.getArgument(0));
+
+        issueService.create(
+                new CreateIssueRequest("New issue", null, IssuePriority.LOW, IssueSeverity.LOW, 10L, null, null),
+                ACTOR_ID
+        );
+
+        ArgumentCaptor<com.buglens.event.domain.IssueCreatedEvent> captor =
+                ArgumentCaptor.forClass(com.buglens.event.domain.IssueCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals("BL-20", captor.getValue().issueKey());
+        assertEquals(ACTOR_ID, captor.getValue().actorId());
+    }
+
+    @Test
+    void updatePublishesIssueUpdatedEventNamingChangedFields() {
+        Issue issue = existingIssue();
+        when(issueRepository.findById(5L)).thenReturn(Optional.of(issue));
+
+        issueService.updateDetails(
+                5L,
+                new UpdateIssueRequest("Renamed", null, IssuePriority.LOW, null, null, null, null, null, null),
+                ACTOR_ID
+        );
+
+        ArgumentCaptor<com.buglens.event.domain.IssueUpdatedEvent> captor =
+                ArgumentCaptor.forClass(com.buglens.event.domain.IssueUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(java.util.List.of("title", "priority"), captor.getValue().changedFields());
+    }
+
+    @Test
+    void updateWithNoActualChangePublishesNothing() {
+        Issue issue = existingIssue();
+        when(issueRepository.findById(5L)).thenReturn(Optional.of(issue));
+
+        issueService.updateDetails(
+                5L,
+                new UpdateIssueRequest(null, null, null, null, null, null, null, null, null),
+                ACTOR_ID
+        );
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void rejectedCreatePublishesNoEvent() {
+        when(componentRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(IssueComponentNotFoundException.class, () -> issueService.create(
+                new CreateIssueRequest("x", null, IssuePriority.LOW, IssueSeverity.LOW, 99L, null, null),
+                ACTOR_ID
+        ));
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test

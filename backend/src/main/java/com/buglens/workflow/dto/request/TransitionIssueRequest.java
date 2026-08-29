@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * @param comment currently accepted but NOT persisted — comment storage arrives in Phase 4 and
- *                activity history in Phase 5. It is validated so the API shape stays stable.
+ * @param comment optional note explaining the transition. Persisted as an issue comment in the
+ *                same transaction as the status change, so a rejected transition stores nothing.
  */
 public record TransitionIssueRequest(
         @NotNull(message = "Target status is required")

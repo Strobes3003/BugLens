@@ -2,6 +2,7 @@ package com.buglens.workflow.service;
 
 import com.buglens.comment.dto.request.CreateCommentRequest;
 import com.buglens.comment.service.CommentService;
+import com.buglens.event.domain.IssueStatusChangedEvent;
 import com.buglens.issue.dto.response.IssueResponse;
 import com.buglens.issue.entity.Issue;
 import com.buglens.issue.entity.IssueStatus;
@@ -14,6 +15,7 @@ import com.buglens.workflow.dto.request.TransitionIssueRequest;
 import com.buglens.workflow.dto.response.AllowedTransitionsResponse;
 import com.buglens.workspace.exception.WorkspaceAccessDeniedException;
 import com.buglens.workspace.service.WorkspaceAccessService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,15 +26,18 @@ public class WorkflowService {
     private final IssueRepository issueRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final CommentService commentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public WorkflowService(
             IssueRepository issueRepository,
             WorkspaceAccessService workspaceAccessService,
-            CommentService commentService
+            CommentService commentService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.issueRepository = issueRepository;
         this.workspaceAccessService = workspaceAccessService;
         this.commentService = commentService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -41,10 +46,15 @@ public class WorkflowService {
         requireMember(issue.getComponent().getProject(), actorId);
 
         IssueStatus target = request.targetStatus();
-        IssueWorkflow.requireAllowed(issue.getStatus(), target);
+        IssueStatus previous = issue.getStatus();
+        IssueWorkflow.requireAllowed(previous, target);
         issue.transitionTo(target);
 
         persistTransitionComment(issueId, request.comment(), actorId);
+
+        eventPublisher.publishEvent(
+                IssueStatusChangedEvent.of(issue.getId(), actorId, previous, target)
+        );
 
         return IssueResponse.from(issue);
     }

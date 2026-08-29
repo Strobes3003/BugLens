@@ -12,11 +12,13 @@ import com.buglens.comment.exception.CommentIssueNotFoundException;
 import com.buglens.comment.exception.CommentNotFoundException;
 import com.buglens.comment.exception.InvalidCommentBodyException;
 import com.buglens.comment.repository.CommentRepository;
+import com.buglens.event.domain.IssueCommentedEvent;
 import com.buglens.issue.entity.Issue;
 import com.buglens.issue.repository.IssueRepository;
 import com.buglens.project.entity.Project;
 import com.buglens.workspace.exception.WorkspaceAccessDeniedException;
 import com.buglens.workspace.service.WorkspaceAccessService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +32,20 @@ public class CommentService {
     private final IssueRepository issueRepository;
     private final UserRepository userRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CommentService(
             CommentRepository commentRepository,
             IssueRepository issueRepository,
             UserRepository userRepository,
-            WorkspaceAccessService workspaceAccessService
+            WorkspaceAccessService workspaceAccessService,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.commentRepository = commentRepository;
         this.issueRepository = issueRepository;
         this.userRepository = userRepository;
         this.workspaceAccessService = workspaceAccessService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -51,8 +56,11 @@ public class CommentService {
         User author = userRepository.findById(authorId)
                 .orElseThrow(() -> new CommentAuthorNotFoundException(authorId));
 
-        Comment comment = new Comment(issue, author, normalizeBody(request.body()));
-        return CommentResponse.from(commentRepository.save(comment));
+        Comment saved = commentRepository.save(new Comment(issue, author, normalizeBody(request.body())));
+        eventPublisher.publishEvent(
+                IssueCommentedEvent.of(issue.getId(), authorId, saved.getId())
+        );
+        return CommentResponse.from(saved);
     }
 
     public List<CommentResponse> listForIssue(Long issueId, Long actorId) {

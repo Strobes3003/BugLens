@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
@@ -65,6 +66,9 @@ class CommentServiceTest {
     private WorkspaceAccessService workspaceAccessService;
 
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
     private Workspace workspace;
 
     @Mock
@@ -84,7 +88,7 @@ class CommentServiceTest {
     @BeforeEach
     void setUp() {
         commentService = new CommentService(
-                commentRepository, issueRepository, userRepository, workspaceAccessService
+                commentRepository, issueRepository, userRepository, workspaceAccessService, eventPublisher
         );
 
         author = userWithId(AUTHOR_ID, "Author", "author@buglens.test");
@@ -125,6 +129,29 @@ class CommentServiceTest {
         assertEquals(ISSUE_ID, response.issueId());
         assertEquals(AUTHOR_ID, response.author().id());
         assertFalse(response.isEdited());
+    }
+
+    @Test
+    void addCommentPublishesIssueCommentedEvent() {
+        when(commentRepository.save(any(Comment.class))).thenAnswer(call -> call.getArgument(0));
+
+        commentService.addComment(ISSUE_ID, new CreateCommentRequest("Body"), AUTHOR_ID);
+
+        ArgumentCaptor<com.buglens.event.domain.IssueCommentedEvent> captor =
+                ArgumentCaptor.forClass(com.buglens.event.domain.IssueCommentedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(ISSUE_ID, captor.getValue().issueId());
+        assertEquals(AUTHOR_ID, captor.getValue().actorId());
+    }
+
+    @Test
+    void rejectedCommentPublishesNoEvent() {
+        assertThrows(
+                InvalidCommentBodyException.class,
+                () -> commentService.addComment(ISSUE_ID, new CreateCommentRequest("  "), AUTHOR_ID)
+        );
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     @Test

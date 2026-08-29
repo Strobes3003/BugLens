@@ -26,6 +26,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
@@ -57,6 +58,9 @@ class WorkflowServiceTest {
     private CommentService commentService;
 
     @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
     private Workspace workspace;
 
     @Mock
@@ -73,7 +77,7 @@ class WorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
-        workflowService = new WorkflowService(issueRepository, workspaceAccessService, commentService);
+        workflowService = new WorkflowService(issueRepository, workspaceAccessService, commentService, eventPublisher);
         reporter = new User("Reporter", "reporter@buglens.test", "hash", null);
 
         lenient().when(workspace.getId()).thenReturn(WORKSPACE_ID);
@@ -223,6 +227,39 @@ class WorkflowServiceTest {
         verify(commentService, org.mockito.Mockito.never())
                 .addComment(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void transitionPublishesStatusChangedEventWithBothStatuses() {
+        Issue issue = issueWithStatus(IssueStatus.OPEN);
+        when(issueRepository.findById(ISSUE_ID)).thenReturn(Optional.of(issue));
+
+        workflowService.transition(
+                ISSUE_ID, new TransitionIssueRequest(IssueStatus.IN_PROGRESS, null), ACTOR_ID
+        );
+
+        org.mockito.ArgumentCaptor<com.buglens.event.domain.IssueStatusChangedEvent> captor =
+                org.mockito.ArgumentCaptor.forClass(com.buglens.event.domain.IssueStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(IssueStatus.OPEN, captor.getValue().oldStatus());
+        assertEquals(IssueStatus.IN_PROGRESS, captor.getValue().newStatus());
+        assertEquals(ACTOR_ID, captor.getValue().actorId());
+    }
+
+    @Test
+    void rejectedTransitionPublishesNoEvent() {
+        Issue issue = issueWithStatus(IssueStatus.OPEN);
+        when(issueRepository.findById(ISSUE_ID)).thenReturn(Optional.of(issue));
+
+        assertThrows(
+                InvalidStateTransitionException.class,
+                () -> workflowService.transition(
+                        ISSUE_ID, new TransitionIssueRequest(IssueStatus.CLOSED, null), ACTOR_ID
+                )
+        );
+
+        verify(eventPublisher, org.mockito.Mockito.never())
+                .publishEvent(org.mockito.ArgumentMatchers.any(Object.class));
     }
 
     @Test
