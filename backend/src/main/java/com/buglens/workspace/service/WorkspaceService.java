@@ -87,10 +87,22 @@ public class WorkspaceService {
         return toResponse(workspace);
     }
 
+    /**
+     * Clearing the members first is required, not tidiness, and it is not made redundant
+     * by the ON DELETE CASCADE on workspace_members.workspace_id.
+     *
+     * <p>requireOwner loads the actor's WorkspaceMember to check the role, so by the time
+     * we remove the workspace a managed member is still holding a reference to it. At
+     * flush Hibernate sees that reference pointing at an entity it no longer considers
+     * persistent and throws TransientPropertyValueException, so the DELETE is never
+     * issued and the database cascade never gets the chance to run. Removing the members
+     * through the repository takes them out of the persistence context first.
+     */
     @Transactional
     public void delete(Long workspaceId, Long actorId) {
         Workspace workspace = getWorkspace(workspaceId);
         workspaceAccessService.requireOwner(workspaceId, actorId);
+        workspaceMemberRepository.deleteAllByWorkspaceId(workspaceId);
         workspaceRepository.delete(workspace);
     }
 

@@ -18,4 +18,12 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
 
     @EntityGraph(attributePaths = {"user"})
     List<WorkspaceMember> findAllByWorkspaceIdOrderByJoinedAtAsc(Long workspaceId);
+
+    /*
+     * Derived on purpose. Spring Data runs this as a select followed by a remove per
+     * row, which evicts the members from the persistence context; a bulk @Query delete
+     * would go straight to SQL and leave them managed, which is the very thing that
+     * breaks workspace deletion. See WorkspaceService#delete.
+     */
+    void deleteAllByWorkspaceId(Long workspaceId);
 }
