@@ -4,7 +4,7 @@ import * as componentApi from "../api/componentApi";
 import * as releaseApi from "../api/releaseApi";
 import { useActiveProject } from "../features/projects/hooks/useActiveProject";
 import ProjectPicker from "../features/projects/components/ProjectPicker";
-import { Spinner, ErrorState, EmptyState } from "../components/ui";
+import { Spinner, ErrorState, EmptyState, Button } from "../components/ui";
 import IssueFilters from "../features/issues/IssueFilters";
 import IssueTable from "../features/issues/IssueTable";
 import IssuePagination from "../features/issues/IssuePagination";
@@ -431,10 +431,10 @@ function IssueForm({ title, issue, components, releases, onSubmit, onClose }) {
                 </label>
 
                 <div className="issue-form-actions">
-                    <button type="submit">Save</button>
-                    <button type="button" onClick={onClose}>
+                    <Button type="submit">Save</Button>
+                    <Button type="button" variant="secondary" onClick={onClose}>
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
         </div>

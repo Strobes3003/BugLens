@@ -1,3 +1,5 @@
+import { Button } from "../../components/ui";
+
 function IssueFilters({
                           searchQuery,
                           onSearchChange,
@@ -23,12 +25,9 @@ function IssueFilters({
                     }
                 />
 
-                <button
-                    type="button"
-                    onClick={onCreateIssue}
-                >
+                <Button type="button" onClick={onCreateIssue}>
                     Create Issue
-                </button>
+                </Button>
             </div>
 
             <div>

@@ -6,14 +6,9 @@
  * you a state apart.
  */
 
-/** OPEN -> "Open", IN_PROGRESS -> "In progress" */
-export function humanize(value) {
-  if (!value) return ''
-  return value
-    .split('_')
-    .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-    .join(' ')
-}
+// Re-exported so callers already importing it from here keep working; the
+// implementation is shared with the rest of the app.
+export { humanize } from '../../utils/format'
 
 const STATUS_VARIANTS = {
   OPEN: 'default',

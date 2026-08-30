@@ -1,11 +1,11 @@
 import { useState } from "react";
+import { Button } from "../../components/ui";
 
 function CommentSection({
-                            comments = [],
-                            onAddComment,
-                            onEditComment,
-                            onDeleteComment,
-                        }) {
+    comments = [],
+    onAddComment,
+    onDeleteComment,
+}) {
     const [text, setText] = useState("");
 
     const handleSubmit = (event) => {
@@ -43,27 +43,16 @@ function CommentSection({
                                 comment.text}
                         </p>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                onEditComment?.(
-                                    comment
-                                )
-                            }
-                        >
-                            Edit
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() =>
-                                onDeleteComment?.(
-                                    comment.id
-                                )
-                            }
-                        >
-                            Delete
-                        </button>
+                        <div className="idp-comment-actions">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onDeleteComment?.(comment.id)}
+                            >
+                                Delete
+                            </Button>
+                        </div>
                     </article>
                 ))
             )}
@@ -77,9 +66,9 @@ function CommentSection({
                     placeholder="Write a comment..."
                 />
 
-                <button type="submit">
+                <Button type="submit" variant="primary">
                     Add Comment
-                </button>
+                </Button>
             </form>
         </section>
     );

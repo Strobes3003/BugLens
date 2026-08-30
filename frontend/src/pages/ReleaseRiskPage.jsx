@@ -3,13 +3,61 @@ import * as intelligenceApi from "../api/intelligenceApi";
 import * as releaseApi from "../api/releaseApi";
 import { useActiveProject } from "../features/projects/hooks/useActiveProject";
 import ProjectPicker from "../features/projects/components/ProjectPicker";
-import { Spinner, ErrorState, EmptyState } from "../components/ui";
+import PageHeader from "../components/common/PageHeader";
+import { Spinner, ErrorState, EmptyState, Badge, Table } from "../components/ui";
+import { humanize, formatDate } from "../utils/format";
+import "../features/releases/release-risk.css";
 
-function riskLabel(score) {
-    if (score >= 70) return "High";
-    if (score >= 30) return "Moderate";
-    return "Low";
+/**
+ * Label and color are decided together so the two can never disagree about where
+ * a threshold sits. The badge always carries its word, so the level never rests
+ * on color alone.
+ */
+function riskLevel(score) {
+    if (score >= 70) return { label: "High", variant: "danger" };
+    if (score >= 30) return { label: "Moderate", variant: "warning" };
+    return { label: "Low", variant: "success" };
 }
+
+const COLUMNS = [
+    {
+        key: "release",
+        header: "Release",
+        render: (row) => (
+            <span className="rr-release-name">{row.release.name}</span>
+        ),
+    },
+    {
+        key: "status",
+        header: "Status",
+        render: (row) => humanize(row.release.status),
+    },
+    {
+        key: "targetDate",
+        header: "Target date",
+        render: (row) =>
+            formatDate(row.release.targetDate) ?? (
+                <span className="rr-muted">—</span>
+            ),
+    },
+    {
+        key: "risk",
+        header: "Risk",
+        render: (row) => {
+            if (!row.risk) {
+                return <span className="rr-muted">Unavailable</span>;
+            }
+
+            const level = riskLevel(row.risk.riskScore);
+            return (
+                <span className="rr-risk-cell">
+                    <span className="rr-score">{row.risk.riskScore}</span>
+                    <Badge variant={level.variant}>{level.label}</Badge>
+                </span>
+            );
+        },
+    },
+];
 
 function ReleaseRiskPage() {
     const {
@@ -47,6 +95,7 @@ function ReleaseRiskPage() {
                     )
                 ).then((results) =>
                     releases.map((release, index) => ({
+                        id: release.id,
                         release,
                         risk:
                             results[index].status === "fulfilled"
@@ -83,15 +132,17 @@ function ReleaseRiskPage() {
 
     return (
         <main>
-            <header>
-                <h1>Release Risk</h1>
-                <p>How risky each release looks right now.</p>
-                <ProjectPicker
-                    projects={projects}
-                    activeProjectId={activeProjectId}
-                    onSelect={selectProject}
-                />
-            </header>
+            <PageHeader
+                title="Release Risk"
+                subtitle="How risky each release looks right now."
+                action={
+                    <ProjectPicker
+                        projects={projects}
+                        activeProjectId={activeProjectId}
+                        onSelect={selectProject}
+                    />
+                }
+            />
 
             {risks.length === 0 ? (
                 <EmptyState
@@ -99,32 +150,7 @@ function ReleaseRiskPage() {
                     description="Create a release in this project to track its risk."
                 />
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Release</th>
-                            <th>Status</th>
-                            <th>Target date</th>
-                            <th>Risk</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {risks.map(({ release, risk }) => (
-                            <tr key={release.id}>
-                                <td>{release.name}</td>
-                                <td>{release.status}</td>
-                                <td>{release.targetDate ?? "—"}</td>
-                                <td>
-                                    {risk
-                                        ? `${risk.riskScore} (${riskLabel(
-                                              risk.riskScore
-                                          )})`
-                                        : "Unavailable"}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <Table columns={COLUMNS} data={risks} keyField="id" />
             )}
         </main>
     );

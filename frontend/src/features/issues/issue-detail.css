@@ -195,9 +195,10 @@
 }
 
 /*
- * Comments and activity render their own semantic markup. Rather than rewrite two
- * components this page only borrows, their plain elements are dressed here so the
- * panels read as part of the same system.
+ * Comments and activity render plain semantic markup — headings, articles, a
+ * textarea — which is dressed here so both panels read as part of the same system.
+ * Their buttons are not: those are the shared Button component, so nothing in this
+ * file restyles a control that ui.css already owns.
  */
 .idp-feed h2,
 .idp-feed h3 {
@@ -246,27 +247,11 @@
   color: var(--text-muted);
 }
 
-/* The two feed components ship native buttons; give them the system's ghost look. */
-.idp-feed article button {
-  margin: 8px 8px 0 0;
-  padding: 4px 10px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition:
-    background-color 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.idp-feed article button:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent-border);
-  color: var(--accent);
+/* Comment actions; the buttons themselves are the shared Button component. */
+.idp-comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .idp-feed form {
@@ -296,22 +281,4 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-bg);
-}
-
-.idp-feed form button[type='submit'] {
-  margin: 0;
-  padding: 9px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.idp-feed form button[type='submit']:hover {
-  background: var(--accent-hover);
-  color: #fff;
 }

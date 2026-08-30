@@ -1,0 +1,30 @@
+/*
+ * Release risk table.
+ *
+ * The table chrome itself — surface header row, row borders, hover tint, the
+ * bordered rounded wrapper — comes from `.table` in ui.css, so this page picks up
+ * the warm palette automatically and stays in step if that ever changes.
+ */
+
+.rr-release-name {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.rr-risk-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Tabular figures so the scores line up as a column rather than drifting. */
+.rr-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-h);
+  min-width: 3ch;
+}
+
+.rr-muted {
+  color: var(--text-muted);
+}
