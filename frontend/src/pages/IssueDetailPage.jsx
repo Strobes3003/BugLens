@@ -6,18 +6,18 @@ import * as activityApi from "../api/activityApi";
 import * as dependencyApi from "../api/dependencyApi";
 import * as intelligenceApi from "../api/intelligenceApi";
 import * as workflowApi from "../api/workflowApi";
-import { Spinner, ErrorState } from "../components/ui";
+import { Spinner, ErrorState, Badge } from "../components/ui";
 import WorkflowControls from "../features/workflow/WorkflowControls";
 import CommentSection from "../features/comments/CommentSection";
 import ActivityTimeline from "../features/activity/ActivityTimeline";
 import DependencyList from "../features/dependencies/DependencyList";
 import IntelligenceCard from "../features/intelligence/IntelligenceCard";
-
-const humanize = (status) =>
-    status
-        .split("_")
-        .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-        .join(" ");
+import {
+    humanize,
+    statusVariant,
+    levelVariant,
+} from "../features/issues/issueBadges";
+import "../features/issues/issue-detail.css";
 
 /** Both directions flattened into the rows DependencyList renders. */
 function toDependencyRows(dependencies, issueId) {
@@ -42,6 +42,16 @@ function toDependencyRows(dependencies, issueId) {
     }));
 
     return [...blockedBy, ...blocking];
+}
+
+/** A labelled row in the metadata card. Values that are badges pass `badge`. */
+function MetaRow({ label, children }) {
+    return (
+        <div className="idp-meta-row">
+            <span className="idp-label">{label}</span>
+            {children}
+        </div>
+    );
 }
 
 function IssueDetailPage() {
@@ -184,109 +194,148 @@ function IssueDetailPage() {
 
     return (
         <main>
-            <header>
-                <p>{issue.issueKey}</p>
-                <h1>{issue.title}</h1>
-                <p>Issue details and project activity</p>
-            </header>
-
             {actionError && <ErrorState message={actionError} />}
 
-            <section>
-                <h2>Issue Information</h2>
+            <div className="idp-grid">
+                <div className="idp-col">
+                    <header className="idp-card">
+                        <p className="idp-key">{issue.issueKey}</p>
+                        <h1 className="idp-title">{issue.title}</h1>
+                    </header>
 
-                <div>
-                    <strong>Status</strong>
-                    <p>{issue.status}</p>
-                </div>
+                    <section className="idp-card">
+                        <h2 className="idp-section-title">Description</h2>
+                        {issue.description ? (
+                            <p className="idp-description">
+                                {issue.description}
+                            </p>
+                        ) : (
+                            <p className="idp-empty">
+                                No description was provided for this issue.
+                            </p>
+                        )}
+                    </section>
 
-                <div>
-                    <strong>Severity</strong>
-                    <p>{issue.severity}</p>
-                </div>
+                    <WorkflowControls
+                        status={issue.status}
+                        transitions={transitions}
+                        onTransition={handleTransition}
+                    />
 
-                <div>
-                    <strong>Priority</strong>
-                    <p>{issue.priority}</p>
-                </div>
+                    <DependencyList
+                        dependencies={dependencies}
+                        onRemove={handleRemoveDependency}
+                    />
 
-                <div>
-                    <strong>Assignee</strong>
-                    <p>{issue.assigneeName ?? "Unassigned"}</p>
-                </div>
+                    <section className="idp-card">
+                        <h2 className="idp-section-title">Intelligence</h2>
 
-                <div>
-                    <strong>Component</strong>
-                    <p>{issue.componentName}</p>
-                </div>
+                        <div className="idp-stat-grid">
+                            <IntelligenceCard
+                                title="Blast Radius"
+                                value={
+                                    analysis
+                                        ? String(analysis.blastRadius)
+                                        : "Unavailable"
+                                }
+                                description={
+                                    analysis?.hasBottleneck
+                                        ? "This issue is a bottleneck — several issues wait on it directly."
+                                        : "Issues downstream of this one, at any depth."
+                                }
+                            />
 
-                <div>
-                    <strong>Release</strong>
-                    <p>{issue.releaseName ?? "Backlog"}</p>
-                </div>
+                            <IntelligenceCard
+                                title="Component Health"
+                                value={
+                                    health
+                                        ? String(health.healthScore)
+                                        : "Unavailable"
+                                }
+                                description={
+                                    health
+                                        ? `Health of ${health.componentName}.`
+                                        : "Not calculated yet."
+                                }
+                            />
 
-                {issue.description && (
-                    <div>
-                        <strong>Description</strong>
-                        <p>{issue.description}</p>
+                            <IntelligenceCard
+                                title="Release Risk"
+                                value={
+                                    risk
+                                        ? String(risk.riskScore)
+                                        : "Not in a release"
+                                }
+                                description={
+                                    risk
+                                        ? `Risk for ${risk.releaseName}.`
+                                        : "This issue is in the backlog."
+                                }
+                            />
+                        </div>
+                    </section>
+
+                    <div className="idp-card idp-feed">
+                        <CommentSection
+                            comments={comments}
+                            onAddComment={handleAddComment}
+                            onDeleteComment={handleDeleteComment}
+                        />
                     </div>
-                )}
-            </section>
 
-            <WorkflowControls
-                status={issue.status}
-                transitions={transitions}
-                onTransition={handleTransition}
-            />
+                    <div className="idp-card idp-feed">
+                        <ActivityTimeline activities={activities} />
+                    </div>
+                </div>
 
-            <DependencyList
-                dependencies={dependencies}
-                onRemove={handleRemoveDependency}
-            />
+                <aside className="idp-side">
+                    <div className="idp-card">
+                        <h2 className="idp-section-title">Details</h2>
 
-            <section>
-                <h2>Intelligence</h2>
+                        <MetaRow label="Status">
+                            <span>
+                                <Badge variant={statusVariant(issue.status)}>
+                                    {humanize(issue.status)}
+                                </Badge>
+                            </span>
+                        </MetaRow>
 
-                <IntelligenceCard
-                    title="Blast Radius"
-                    value={
-                        analysis ? String(analysis.blastRadius) : "Unavailable"
-                    }
-                    description={
-                        analysis?.hasBottleneck
-                            ? "This issue is a bottleneck — several issues wait on it directly."
-                            : "Issues downstream of this one, at any depth."
-                    }
-                />
+                        <MetaRow label="Severity">
+                            <span>
+                                <Badge variant={levelVariant(issue.severity)}>
+                                    {humanize(issue.severity)}
+                                </Badge>
+                            </span>
+                        </MetaRow>
 
-                <IntelligenceCard
-                    title="Component Health"
-                    value={health ? String(health.healthScore) : "Unavailable"}
-                    description={
-                        health
-                            ? `Health of ${health.componentName}.`
-                            : "Not calculated yet."
-                    }
-                />
+                        <MetaRow label="Priority">
+                            <span>
+                                <Badge variant={levelVariant(issue.priority)}>
+                                    {humanize(issue.priority)}
+                                </Badge>
+                            </span>
+                        </MetaRow>
 
-                <IntelligenceCard
-                    title="Release Risk"
-                    value={risk ? String(risk.riskScore) : "Not in a release"}
-                    description={
-                        risk
-                            ? `Risk for ${risk.releaseName}.`
-                            : "This issue is in the backlog."
-                    }
-                />
-            </section>
+                        <MetaRow label="Assignee">
+                            <span className="idp-value">
+                                {issue.assigneeName ?? "Unassigned"}
+                            </span>
+                        </MetaRow>
 
-            <CommentSection
-                comments={comments}
-                onAddComment={handleAddComment}
-                onDeleteComment={handleDeleteComment}
-            />
+                        <MetaRow label="Component">
+                            <span className="idp-value">
+                                {issue.componentName ?? "—"}
+                            </span>
+                        </MetaRow>
 
-            <ActivityTimeline activities={activities} />
+                        <MetaRow label="Release">
+                            <span className="idp-value">
+                                {issue.releaseName ?? "Backlog"}
+                            </span>
+                        </MetaRow>
+                    </div>
+                </aside>
+            </div>
         </main>
     );
 }

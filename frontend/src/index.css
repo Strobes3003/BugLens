@@ -23,6 +23,8 @@
   --success-bg: rgba(26, 156, 107, 0.1);
   --warning: #b8860b;
   --warning-bg: rgba(184, 134, 11, 0.12);
+  --info: #2358c4;
+  --info-bg: rgba(35, 88, 196, 0.1);
 
   --shadow:
     rgba(36, 26, 25, 0.14) 0 10px 15px -3px, rgba(36, 26, 25, 0.08) 0 4px 6px -2px;

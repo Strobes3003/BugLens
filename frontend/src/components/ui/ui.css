@@ -175,6 +175,15 @@
   background: var(--warning-bg);
   color: var(--warning);
 }
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+/* Solid, for the one state that should stop you: CRITICAL. */
+.badge-critical {
+  background: var(--danger);
+  color: #fff;
+}
 
 /* Avatar */
 .avatar {

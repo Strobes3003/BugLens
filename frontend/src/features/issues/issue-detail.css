@@ -1,0 +1,317 @@
+/*
+ * Issue detail — two-column shell.
+ *
+ * These panels deliberately do not reuse `.card` from ui.css. That component lifts,
+ * shadows and turns crimson on hover, which is right for the clickable project cards
+ * it was built for and wrong for panels you only read. The visual language (1px
+ * border, same radius, same surfaces) is kept identical so the two still agree.
+ */
+
+.idp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(264px, 3fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.idp-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* The metadata card tracks the reader down a long thread of comments. */
+.idp-side {
+  position: sticky;
+  top: 20px;
+}
+
+@media (max-width: 980px) {
+  .idp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .idp-side {
+    position: static;
+  }
+}
+
+/* Panels */
+.idp-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.idp-section-title {
+  font-family: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 14px;
+}
+
+.idp-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Typography — labels and values are two different things and never look alike. */
+.idp-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.idp-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Header */
+.idp-key {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.idp-title {
+  font-size: 26px;
+  line-height: 1.25;
+  margin: 8px 0 0;
+}
+
+.idp-description {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Metadata card */
+.idp-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.idp-meta-row:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.idp-meta-row:last-of-type {
+  padding-bottom: 0;
+}
+
+/* Workflow */
+.idp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.idp-current-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+/* Dependencies */
+.idp-dep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.idp-dep-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.idp-dep-key {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.idp-dep-actions {
+  margin-left: auto;
+}
+
+/*
+ * Intelligence — three single headline numbers, so stat tiles rather than a chart.
+ * Values stay in ink tokens; the tile never encodes meaning in color alone.
+ */
+.idp-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.idp-stat {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.idp-stat-value {
+  font-family: var(--heading);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-h);
+  margin: 8px 0 0;
+}
+
+.idp-stat-desc {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/*
+ * Comments and activity render their own semantic markup. Rather than rewrite two
+ * components this page only borrows, their plain elements are dressed here so the
+ * panels read as part of the same system.
+ */
+.idp-feed h2,
+.idp-feed h3 {
+  font-family: var(--heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0 0 14px;
+}
+
+.idp-feed article {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.idp-feed article:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.idp-feed article > strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.idp-feed article > p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.idp-feed article > small {
+  display: block;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.idp-feed > section > p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* The two feed components ship native buttons; give them the system's ghost look. */
+.idp-feed article button {
+  margin: 8px 8px 0 0;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.idp-feed article button:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.idp-feed form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.idp-feed textarea {
+  font: inherit;
+  font-size: 14px;
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 12px;
+  color: var(--text-h);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.idp-feed textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.idp-feed form button[type='submit'] {
+  margin: 0;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.idp-feed form button[type='submit']:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}

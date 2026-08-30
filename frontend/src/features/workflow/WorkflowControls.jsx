@@ -1,33 +1,37 @@
-function WorkflowControls({
-                              status,
-                              transitions = [],
-                              onTransition,
-                          }) {
-    return (
-        <section>
-            <h2>Workflow</h2>
+import { Badge, Button } from "../../components/ui";
+import { humanize, statusVariant } from "../issues/issueBadges";
+import "../issues/issue-detail.css";
 
-            <p>
-                Current status:{" "}
-                <strong>{status}</strong>
-            </p>
+function WorkflowControls({ status, transitions = [], onTransition }) {
+    return (
+        <section className="idp-card">
+            <h2 className="idp-section-title">Workflow</h2>
+
+            <div className="idp-current-status">
+                <span className="idp-label">Current status</span>
+                <Badge variant={statusVariant(status)}>
+                    {humanize(status)}
+                </Badge>
+            </div>
 
             {transitions.length === 0 ? (
-                <p>No available transitions.</p>
+                <p className="idp-empty">
+                    No transitions are available from this status.
+                </p>
             ) : (
-                transitions.map((transition) => (
-                    <button
-                        key={transition.id}
-                        type="button"
-                        onClick={() =>
-                            onTransition?.(
-                                transition
-                            )
-                        }
-                    >
-                        {transition.name}
-                    </button>
-                ))
+                <div className="idp-actions">
+                    {transitions.map((transition) => (
+                        <Button
+                            key={transition.id}
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => onTransition?.(transition)}
+                        >
+                            {transition.name}
+                        </Button>
+                    ))}
+                </div>
             )}
         </section>
     );

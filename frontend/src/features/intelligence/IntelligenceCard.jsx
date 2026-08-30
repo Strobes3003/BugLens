@@ -1,22 +1,19 @@
-function IntelligenceCard({
-                              title,
-                              value,
-                              description,
-                              status,
-                          }) {
+import "../issues/issue-detail.css";
+
+/**
+ * A single headline number. Deliberately not a chart: one value with no series and
+ * no time axis reads faster as a stat tile, and the meaning never rests on color.
+ */
+function IntelligenceCard({ title, value, description, status }) {
     return (
-        <article>
-            <h3>{title}</h3>
+        <article className="idp-stat">
+            <h3 className="idp-label">{title}</h3>
 
-            <strong>{value}</strong>
+            <p className="idp-stat-value">{value}</p>
 
-            {status && (
-                <p>Status: {status}</p>
-            )}
+            {status && <p className="idp-stat-desc">Status: {status}</p>}
 
-            {description && (
-                <p>{description}</p>
-            )}
+            {description && <p className="idp-stat-desc">{description}</p>}
         </article>
     );
 }

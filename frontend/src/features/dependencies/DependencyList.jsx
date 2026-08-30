@@ -1,38 +1,41 @@
-function DependencyList({
-                            dependencies = [],
-                            onRemove,
-                        }) {
+import { Badge, Button } from "../../components/ui";
+import "../issues/issue-detail.css";
+
+function DependencyList({ dependencies = [], onRemove }) {
     return (
-        <section>
-            <h2>Dependencies</h2>
+        <section className="idp-card">
+            <h2 className="idp-section-title">Dependencies</h2>
 
             {dependencies.length === 0 ? (
-                <p>No dependencies.</p>
+                <p className="idp-empty">
+                    This issue neither blocks nor waits on anything.
+                </p>
             ) : (
-                dependencies.map((dependency) => (
-                    <article key={dependency.id}>
-                        <strong>
-                            {dependency.issueKey ??
-                                dependency.targetIssueKey}
-                        </strong>
+                <div className="idp-dep-list">
+                    {dependencies.map((dependency) => (
+                        <article key={dependency.id} className="idp-dep-row">
+                            <span className="idp-dep-key">
+                                {dependency.issueKey ??
+                                    dependency.targetIssueKey}
+                            </span>
 
-                        <p>
-                            {dependency.type ??
-                                "DEPENDS_ON"}
-                        </p>
+                            <Badge variant="default">
+                                {dependency.type ?? "DEPENDS ON"}
+                            </Badge>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                onRemove?.(
-                                    dependency.id
-                                )
-                            }
-                        >
-                            Remove
-                        </button>
-                    </article>
-                ))
+                            <span className="idp-dep-actions">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onRemove?.(dependency.id)}
+                                >
+                                    Remove
+                                </Button>
+                            </span>
+                        </article>
+                    ))}
+                </div>
             )}
         </section>
     );
