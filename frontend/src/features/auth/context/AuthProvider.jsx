@@ -24,8 +24,8 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (credentials) => {
     setError(null)
     try {
-      const { token, user: loggedInUser } = await authApi.login(credentials)
-      setStoredValue(AUTH_TOKEN_KEY, token)
+      const { accessToken, user: loggedInUser } = await authApi.login(credentials)
+      setStoredValue(AUTH_TOKEN_KEY, accessToken)
       setUser(loggedInUser)
       return loggedInUser
     } catch (err) {
@@ -37,8 +37,8 @@ export function AuthProvider({ children }) {
   const register = useCallback(async (payload) => {
     setError(null)
     try {
-      const { token, user: registeredUser } = await authApi.register(payload)
-      setStoredValue(AUTH_TOKEN_KEY, token)
+      const { accessToken, user: registeredUser } = await authApi.register(payload)
+      setStoredValue(AUTH_TOKEN_KEY, accessToken)
       setUser(registeredUser)
       return registeredUser
     } catch (err) {
@@ -47,10 +47,10 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Nothing to revoke server-side: the JWT is stateless, so dropping it locally is the logout.
   const logout = useCallback(() => {
     setStoredValue(AUTH_TOKEN_KEY, null)
     setUser(null)
-    authApi.logout().catch(() => {})
   }, [])
 
   const value = useMemo(

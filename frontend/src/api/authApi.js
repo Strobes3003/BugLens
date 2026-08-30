@@ -15,7 +15,3 @@ export function register({ name, email, password }) {
 export function getCurrentUser() {
   return axiosClient.get('/auth/me').then((res) => res.data)
 }
-
-export function logout() {
-  return axiosClient.post('/auth/logout').then((res) => res.data)
-}
