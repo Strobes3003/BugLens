@@ -73,7 +73,13 @@ public class WorkspaceController {
     ) {
         workspaceService.delete(workspaceId, principal.getId());
     }
-
+    @GetMapping("/{workspaceId}/members")
+    public List<WorkspaceMemberResponse> listMembers(
+        @PathVariable Long workspaceId,
+        @AuthenticationPrincipal UserPrincipal principal
+    ) {
+    return workspaceService.listMembers(workspaceId, principal.getId());
+    }
     @PostMapping("/{workspaceId}/members")
     @ResponseStatus(HttpStatus.CREATED)
     public WorkspaceMemberResponse addMember(

@@ -159,7 +159,15 @@ public class WorkspaceService {
         validateAdminTarget(actor, target);
         workspaceMemberRepository.delete(target);
     }
+    public List<WorkspaceMemberResponse> listMembers(Long workspaceId, Long userId) {
+    workspaceAccessService.requireMember(workspaceId, userId);
 
+    return workspaceMemberRepository
+            .findAllByWorkspaceIdOrderByJoinedAtAsc(workspaceId)
+            .stream()
+            .map(WorkspaceMemberResponse::from)
+            .toList();
+    }
     private Workspace getWorkspace(Long workspaceId) {
         return workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new WorkspaceNotFoundException(workspaceId));
