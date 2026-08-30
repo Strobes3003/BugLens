@@ -62,6 +62,7 @@ function IssueDetailPage() {
     const [comments, setComments] = useState([]);
     const [activities, setActivities] = useState([]);
     const [dependencies, setDependencies] = useState([]);
+    const [availableIssues, setAvailableIssues] = useState([]);
     const [analysis, setAnalysis] = useState(null);
     const [health, setHealth] = useState(null);
     const [risk, setRisk] = useState(null);
@@ -89,6 +90,9 @@ function IssueDetailPage() {
                     activityApi.getActivity(issueId),
                     dependencyApi.getDependencies(issueId),
                     dependencyApi.getDependencyAnalysis(issueId),
+                    loadedIssue.projectId
+                        ? issueApi.getIssues(loadedIssue.projectId)
+                        : Promise.resolve([]),
                     loadedIssue.componentId
                         ? intelligenceApi.getComponentHealth(
                               loadedIssue.componentId
@@ -132,9 +136,17 @@ function IssueDetailPage() {
                     );
 
                     setDependencies(toDependencyRows(value(3), loadedIssue.id));
+                    const loadedProjectIssues = value(5);
+
+                    setAvailableIssues(
+                        Array.isArray(loadedProjectIssues)
+                            ? loadedProjectIssues
+                            : loadedProjectIssues?.content ?? []
+                    );
+
                     setAnalysis(value(4));
-                    setHealth(value(5));
-                    setRisk(value(6));
+                    setHealth(value(6));
+                    setRisk(value(7));
                 });
             })
             .catch((err) => setError(err.message))
@@ -178,6 +190,20 @@ function IssueDetailPage() {
             .removeDependency(row.blockerId, row.blockedId)
             .then(load)
             .catch((err) => setActionError(err.message));
+    };
+    const handleAddDependency = ({
+                                     blockerIssueId,
+                                     blockedIssueId,
+                                 }) => {
+        setActionError(null);
+
+        return dependencyApi
+            .addDependency(blockerIssueId, blockedIssueId)
+            .then(load)
+            .catch((err) => {
+                setActionError(err.message);
+                throw err;
+            });
     };
 
     if (isLoading) {
@@ -224,7 +250,10 @@ function IssueDetailPage() {
 
                     <DependencyList
                         dependencies={dependencies}
+                        availableIssues={availableIssues}
+                        currentIssueId={issue.id}
                         onRemove={handleRemoveDependency}
+                        onAdd={handleAddDependency}
                     />
 
                     <section className="idp-card">
