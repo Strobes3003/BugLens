@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as authApi from '../../../api/authApi'
+import { onUnauthorized } from '../../../api/authEvents'
 import { AuthContext } from './AuthContext'
 import { AUTH_TOKEN_KEY } from '../../../utils/constants'
 import { getStoredValue, setStoredValue } from '../../../utils/storage'
@@ -20,6 +21,11 @@ export function AuthProvider({ children }) {
       .catch(() => setStoredValue(AUTH_TOKEN_KEY, null))
       .finally(() => setIsLoading(false))
   }, [])
+
+  // A 401 from any call means the stored token is gone or no longer accepted.
+  // Clear the user too, so ProtectedRoute sends us back to the login screen
+  // rather than leaving a signed-in-looking shell firing anonymous requests.
+  useEffect(() => onUnauthorized(() => setUser(null)), [])
 
   const login = useCallback(async (credentials) => {
     setError(null)
